@@ -1,0 +1,31 @@
+{
+  "name": "knowledge-context-mcp",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "smoke": "npm run build && node --input-type=module -e \"import assert from 'node:assert/strict'; import { Client } from '@modelcontextprotocol/sdk/client/index.js'; import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'; const expectedTools = ['build_context_pack', 'get_artifact_lineage', 'get_knowledge_excerpt', 'get_provenance', 'get_task_context', 'list_stale_concepts', 'search_knowledge'].sort(); const expectedResourceTemplates = ['km://artifact/{knowledge_id}', 'km://artifact/{knowledge_id}/version/{revision}', 'km://taxonomy/{domain}'].sort(); const client = new Client({ name: 'knowledge-context-mcp-smoke', version: '1.0.0' }); const transport = new StdioClientTransport({ command: process.execPath, args: ['dist/server.js', '--stdio'], cwd: process.cwd(), stderr: 'pipe' }); try { await client.connect(transport); const tools = await client.listTools(); const toolNames = tools.tools.map((tool) => tool.name).sort(); assert.deepEqual(toolNames, expectedTools); const resources = await client.listResourceTemplates(); const resourceTemplates = resources.resourceTemplates.map((template) => template.uriTemplate).sort(); assert.deepEqual(resourceTemplates, expectedResourceTemplates); console.error('smoke discovered ' + toolNames.length + ' tools and ' + resourceTemplates.length + ' resource templates'); } finally { await client.close(); }\"",
+    "format": "prettier --ignore-unknown --write src tests package.json tsconfig.json vitest.config.ts .env.example",
+    "format:check": "prettier --ignore-unknown --check src tests package.json tsconfig.json vitest.config.ts .env.example"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.19.0",
+    "fastify": "^5.5.0",
+    "pino": "^10.0.0",
+    "zod": "4.1.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,36 @@
+image: node:22
+
+stages:
+  - validate
+
+default:
+  before_script:
+    - npm ci --cache .npm --prefer-offline
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+  policy: pull-push
+
+test:
+  stage: validate
+  script:
+    - npm test
+
+typecheck:
+  stage: validate
+  script:
+    - npm run typecheck
+
+format:
+  stage: validate
+  script:
+    - npm run format:check
+
+build:
+  stage: validate
+  script:
+    - npm run build

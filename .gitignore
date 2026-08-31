@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.idea/
+.vscode/
+.codegraph/
+graphify-out/
+graph-output/
+out/
+tmp/
+temp/
