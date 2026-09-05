@@ -48,6 +48,11 @@ describe("GitLabHttpAdapter", () => {
         ref: "base-1",
       }),
     ).resolves.toMatchObject({ name: "feature" });
+    const branchRequest = requests.find((request) =>
+      request.url.endsWith("/repository/branches?branch=feature&ref=base-1"),
+    );
+    expect(branchRequest).toBeDefined();
+    expect(branchRequest?.init?.body).toBeUndefined();
     await expect(
       adapter.createCommit({
         projectId: "project-1",

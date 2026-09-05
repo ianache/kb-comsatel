@@ -99,12 +99,13 @@ export class GitLabHttpAdapter implements GitLabPort {
   }
 
   async createBranch(input: CreateBranchInput): Promise<GitLabBranch> {
+    const query = new URLSearchParams({ branch: input.branch, ref: input.ref });
     const body = await this.request(
-      this.projectUrl(input.projectId, "/repository/branches"),
-      {
-        method: "POST",
-        body: JSON.stringify({ branch: input.branch, ref: input.ref }),
-      },
+      this.projectUrl(
+        input.projectId,
+        `/repository/branches?${query.toString()}`,
+      ),
+      { method: "POST" },
     );
     const parsed = gitlabBranchSchema.safeParse(body);
     if (!parsed.success) throw unavailable();
