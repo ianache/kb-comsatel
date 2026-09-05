@@ -43,6 +43,13 @@ const configSchema = z.object({
   i3VectorWeight: z.number().finite().nonnegative(),
   i3LexicalWeight: z.number().finite().nonnegative(),
   i3CandidateMultiplier: positiveIntegerSchema,
+  gitlabPublicationEnabled: z.boolean(),
+  gitlabBaseUrl: z.string().url(),
+  gitlabProjectId: z.string().min(1).optional(),
+  gitlabToken: z.string().min(1).optional(),
+  gitlabBaseBranch: z.string().min(1),
+  gitlabBranchPrefix: z.string().min(1),
+  gitlabTimeoutMs: positiveIntegerSchema,
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -105,6 +112,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const i3EmbeddingModel = env.KCP_I3_EMBEDDING_MODEL ?? "local-test";
   const i3EmbeddingUrl = env.KCP_I3_EMBEDDING_URL;
   const i3QdrantUrl = env.KCP_I3_QDRANT_URL ?? "http://127.0.0.1:6333";
+  const gitlabPublicationEnabled = parseBoolean(
+    env.KCP_GITLAB_PUBLICATION_ENABLED,
+    false,
+  );
+  const gitlabBaseUrl = env.KCP_GITLAB_BASE_URL ?? "https://gitlab.example.com";
 
   if (mysqlEnabled && !env.KCP_MYSQL_URL) {
     throw new Error("MySQL URL is required");
@@ -126,6 +138,12 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   if (i3Enabled && i3EmbeddingModel !== "local-test" && !i3EmbeddingUrl) {
     throw new Error("Embedding URL is required");
+  }
+  if (gitlabPublicationEnabled && !env.KCP_GITLAB_PROJECT_ID) {
+    throw new Error("GitLab project ID is required");
+  }
+  if (gitlabPublicationEnabled && !env.KCP_GITLAB_TOKEN) {
+    throw new Error("GitLab token is required");
   }
 
   return configSchema.parse({
@@ -211,6 +229,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       env.KCP_I3_CANDIDATE_MULTIPLIER,
       3,
       "KCP_I3_CANDIDATE_MULTIPLIER",
+    ),
+    gitlabPublicationEnabled,
+    gitlabBaseUrl,
+    gitlabProjectId: env.KCP_GITLAB_PROJECT_ID,
+    gitlabToken: env.KCP_GITLAB_TOKEN,
+    gitlabBaseBranch: env.KCP_GITLAB_BASE_BRANCH ?? "main",
+    gitlabBranchPrefix: env.KCP_GITLAB_BRANCH_PREFIX ?? "knowledge/proposal",
+    gitlabTimeoutMs: parsePositiveInteger(
+      env.KCP_GITLAB_TIMEOUT_MS,
+      10_000,
+      "KCP_GITLAB_TIMEOUT_MS",
     ),
   });
 }

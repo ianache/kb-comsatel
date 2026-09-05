@@ -32,3 +32,15 @@ it("allows explicit deterministic local I3 mode", () => {
     }),
   ).toMatchObject({ i3Enabled: true, i3QdrantEnabled: true });
 });
+
+it("loads explicit GitLab publication configuration", () => {
+  const config = loadConfig({
+    KCP_GITLAB_PUBLICATION_ENABLED: "true",
+    KCP_GITLAB_PROJECT_ID: "project-1",
+    KCP_GITLAB_TOKEN: "secret-token",
+  });
+
+  expect(config.gitlabPublicationEnabled).toBe(true);
+  expect(config.gitlabProjectId).toBe("project-1");
+  expect(config.gitlabToken).toBe("secret-token");
+});
