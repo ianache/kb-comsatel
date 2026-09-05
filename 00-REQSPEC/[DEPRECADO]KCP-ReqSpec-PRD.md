@@ -1,7 +1,7 @@
 # KNOWLEDGE CONTEXT PLATFORM
 ## Requirements Specification & Product Requirements Document
 
-**Version:** 1.0 | **Company:** Comsatel | **Date:** August 2026
+**Version:** 1.0 | **Company:** Comsatel | **Date:** August 2026 | **Status:** DEPRECATED
 
 ---
 

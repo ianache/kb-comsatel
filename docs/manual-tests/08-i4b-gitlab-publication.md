@@ -61,9 +61,9 @@ Ejecutar únicamente en un runner o sesión operativa autorizada, con el token i
 
 ```powershell
 $env:KCP_GITLAB_PUBLICATION_ENABLED = "true"
-$env:KCP_GITLAB_BASE_URL = "https://gitlab.example.com"
-$env:KCP_GITLAB_PROJECT_ID = "<project-id>"
-$env:KCP_GITLAB_TOKEN = "<token-inyectado-por-ci>"
+$env:KCP_GITLAB_BASE_URL = "https://project.comsatel.com.pe"
+$env:KCP_GITLAB_PROJECT_ID = "587"
+$env:KCP_GITLAB_TOKEN = "MI PAT"
 $env:KCP_GITLAB_BASE_BRANCH = "main"
 $env:KCP_GITLAB_BRANCH_PREFIX = "knowledge/proposal"
 npm run okf:publish -- tests/fixtures/okf-valid proposal

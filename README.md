@@ -61,6 +61,8 @@ For a MySQL-backed run, copy `.env.i2.example`, set `KCP_MYSQL_ENABLED=true` and
 
 The liveness endpoint is `GET /health`, readiness is `GET /ready`, and the MCP endpoint is `POST /mcp`. HTTP requests require `Authorization: Bearer <token>` unless local mode is explicitly enabled. Error responses never include tokens, SQL, prompts, or document content.
 
+I3 adds opt-in filesystem ingestion, deterministic chunking, configurable embeddings, Qdrant vectors, and hybrid retrieval. Start Qdrant with `docker-compose.i3.yml`, configure MySQL plus `KCP_I3_ENABLED=true`, then run `npm run i3:index -- --source-dir ./fixtures/i3`. See `docs/operations/i3-indexing.md` and `docs/manual-tests/i3-hybrid-retrieval.md`.
+
 I2 does not implement Qdrant, embeddings, hybrid semantic retrieval, Vault runtime calls, Kubernetes deployment, portal ingestion, source connectors, mutation tools, or web UI.
 
 ## I3 opt-in ingestion and hybrid retrieval
