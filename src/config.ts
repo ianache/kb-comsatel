@@ -3,6 +3,8 @@ import { z } from "zod";
 const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 const portSchema = z.number().int().min(1).max(65535);
 const positiveIntegerSchema = z.number().int().min(1);
+const nonNegativeIntegerSchema = z.number().int().min(0);
+const vectorDistanceSchema = z.enum(["Cosine", "Euclid", "Dot"]);
 const hostSchema = z.enum(["127.0.0.1", "::1"], {
   error: "Health server host must be a loopback address",
 });
@@ -24,6 +26,23 @@ const configSchema = z.object({
   keycloakAzp: z.array(z.string().min(1)),
   keycloakClockToleranceSeconds: z.number().int().min(0),
   keycloakJwksCacheSeconds: positiveIntegerSchema,
+  i3Enabled: z.boolean(),
+  i3SourceDir: z.string().min(1),
+  i3QdrantEnabled: z.boolean(),
+  i3QdrantUrl: z.string().url(),
+  i3QdrantCollection: z.string().min(1),
+  i3VectorDimension: positiveIntegerSchema,
+  i3VectorDistance: vectorDistanceSchema,
+  i3EmbeddingUrl: z.string().url().optional(),
+  i3EmbeddingModel: z.string().min(1),
+  i3EmbeddingApiKey: z.string().optional(),
+  i3EmbeddingTimeoutMs: positiveIntegerSchema,
+  i3ChunkTargetChars: positiveIntegerSchema,
+  i3ChunkOverlapChars: nonNegativeIntegerSchema,
+  i3ChunkMaxChars: positiveIntegerSchema,
+  i3VectorWeight: z.number().finite().nonnegative(),
+  i3LexicalWeight: z.number().finite().nonnegative(),
+  i3CandidateMultiplier: positiveIntegerSchema,
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -81,6 +100,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   );
   const keycloakIssuer = env.KCP_KEYCLOAK_ISSUER;
   const keycloakAudience = env.KCP_KEYCLOAK_AUDIENCE;
+  const i3Enabled = parseBoolean(env.KCP_I3_ENABLED, false);
+  const i3QdrantEnabled = parseBoolean(env.KCP_I3_QDRANT_ENABLED, false);
+  const i3EmbeddingModel = env.KCP_I3_EMBEDDING_MODEL ?? "local-test";
+  const i3EmbeddingUrl = env.KCP_I3_EMBEDDING_URL;
+  const i3QdrantUrl = env.KCP_I3_QDRANT_URL ?? "http://127.0.0.1:6333";
 
   if (mysqlEnabled && !env.KCP_MYSQL_URL) {
     throw new Error("MySQL URL is required");
@@ -90,6 +114,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   if (keycloakEnabled && !keycloakAudience) {
     throw new Error("Keycloak audience is required");
+  }
+  if (i3Enabled && !i3QdrantEnabled) {
+    throw new Error("Qdrant must be enabled");
+  }
+  if (i3Enabled && !i3QdrantUrl) {
+    throw new Error("Qdrant URL is required");
+  }
+  if (i3Enabled && i3EmbeddingModel !== "local-test" && !i3EmbeddingUrl) {
+    throw new Error("Embedding URL is required");
   }
 
   return configSchema.parse({
@@ -125,5 +158,80 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       300,
       "KCP_KEYCLOAK_JWKS_CACHE_SECONDS",
     ),
+    i3Enabled,
+    i3SourceDir: env.KCP_I3_SOURCE_DIR ?? "./fixtures/i3",
+    i3QdrantEnabled,
+    i3QdrantUrl,
+    i3QdrantCollection: env.KCP_I3_QDRANT_COLLECTION ?? "knowledge_chunks",
+    i3VectorDimension: parsePositiveInteger(
+      env.KCP_I3_VECTOR_DIMENSION,
+      3,
+      "KCP_I3_VECTOR_DIMENSION",
+    ),
+    i3VectorDistance: vectorDistanceSchema.parse(
+      env.KCP_I3_VECTOR_DISTANCE ?? "Cosine",
+    ),
+    i3EmbeddingUrl,
+    i3EmbeddingModel,
+    i3EmbeddingApiKey: env.KCP_I3_EMBEDDING_API_KEY,
+    i3EmbeddingTimeoutMs: parsePositiveInteger(
+      env.KCP_I3_EMBEDDING_TIMEOUT_MS,
+      10_000,
+      "KCP_I3_EMBEDDING_TIMEOUT_MS",
+    ),
+    i3ChunkTargetChars: parsePositiveInteger(
+      env.KCP_I3_CHUNK_TARGET_CHARS,
+      1_200,
+      "KCP_I3_CHUNK_TARGET_CHARS",
+    ),
+    i3ChunkOverlapChars: parseNonNegativeInteger(
+      env.KCP_I3_CHUNK_OVERLAP_CHARS,
+      160,
+      "KCP_I3_CHUNK_OVERLAP_CHARS",
+    ),
+    i3ChunkMaxChars: parsePositiveInteger(
+      env.KCP_I3_CHUNK_MAX_CHARS,
+      1_800,
+      "KCP_I3_CHUNK_MAX_CHARS",
+    ),
+    i3VectorWeight: parseNonNegativeNumber(
+      env.KCP_I3_VECTOR_WEIGHT,
+      0.65,
+      "KCP_I3_VECTOR_WEIGHT",
+    ),
+    i3LexicalWeight: parseNonNegativeNumber(
+      env.KCP_I3_LEXICAL_WEIGHT,
+      0.35,
+      "KCP_I3_LEXICAL_WEIGHT",
+    ),
+    i3CandidateMultiplier: parsePositiveInteger(
+      env.KCP_I3_CANDIDATE_MULTIPLIER,
+      3,
+      "KCP_I3_CANDIDATE_MULTIPLIER",
+    ),
   });
+}
+
+function parseNonNegativeInteger(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+): number {
+  const parsed = value === undefined ? fallback : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${name}`);
+  }
+  return parsed;
+}
+
+function parseNonNegativeNumber(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+): number {
+  const parsed = value === undefined ? fallback : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error(`Invalid ${name}`);
+  }
+  return parsed;
 }
