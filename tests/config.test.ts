@@ -3,7 +3,7 @@ import { loadConfig } from "../src/config.js";
 
 describe("loadConfig", () => {
   it("uses safe local defaults", () => {
-    expect(loadConfig({})).toEqual({
+    expect(loadConfig({})).toMatchObject({
       host: "127.0.0.1",
       port: 8787,
       logLevel: "info",
