@@ -46,7 +46,7 @@ describe("Google Drive content normalization", () => {
       {
         relativePath: "folder-1/rule.md",
         sourceUri: "https://drive.google.com/file/d/file-1/view",
-        sourceRevision: "7",
+        sourceRevision: /^7:[a-f0-9]{64}$/u,
         content: "Drive content.\n",
       },
     ]);
