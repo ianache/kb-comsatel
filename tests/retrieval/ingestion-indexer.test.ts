@@ -74,6 +74,30 @@ describe("IngestionIndexer", () => {
     expect(second.skipped).toBe(2);
   });
 
+  it("persists the revision before creating its foreign-keyed index run", async () => {
+    const events: string[] = [];
+    const catalog = fakeCatalog();
+    const originalUpsert = catalog.upsertDocument;
+    catalog.upsertDocument = async (...args) => {
+      events.push("upsert");
+      await originalUpsert(...args);
+    };
+    catalog.beginIndexRun = async () => {
+      events.push("begin");
+      return "run-1";
+    };
+
+    await new IngestionIndexer(
+      new FilesystemDocumentSource({ directory: "fixtures/i3" }),
+      new DeterministicEmbeddingProvider("local-test", 3),
+      fakeVectors(),
+      catalog,
+      { chunk: { targetChars: 80, overlapChars: 10, maxChars: 100 } },
+    ).ingest();
+
+    expect(events.slice(0, 2)).toEqual(["upsert", "begin"]);
+  });
+
   it("marks failures and removes partial vectors", async () => {
     let failed = false;
     const source = new FilesystemDocumentSource({ directory: "fixtures/i3" });

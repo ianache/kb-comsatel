@@ -6,11 +6,11 @@ export async function runI3Indexing(
   environment: Record<string, string | undefined>,
   args: readonly string[],
 ): Promise<number> {
-  const sourceArgument = args.indexOf("--source-dir");
   const configuredEnvironment = { ...environment };
-  if (sourceArgument >= 0 && args[sourceArgument + 1]) {
-    configuredEnvironment.KCP_I3_SOURCE_DIR = args[sourceArgument + 1];
-  }
+  configuredEnvironment.KCP_I3_SOURCE_DIR = resolveI3SourceDirectory(
+    configuredEnvironment.KCP_I3_SOURCE_DIR ?? "./fixtures/i3",
+    args,
+  );
   const config = loadConfig(configuredEnvironment);
   if (!config.i3Enabled) {
     console.error("I3 indexing is disabled; set KCP_I3_ENABLED=true");
@@ -26,6 +26,20 @@ export async function runI3Indexing(
     await dependencies.close();
   }
   return 0;
+}
+
+export function resolveI3SourceDirectory(
+  configuredDirectory: string,
+  args: readonly string[],
+): string {
+  const sourceArgument = args.indexOf("--source-dir");
+  if (sourceArgument >= 0 && args[sourceArgument + 1]) {
+    return args[sourceArgument + 1]!;
+  }
+  const positionalDirectory = args.find(
+    (argument) => !argument.startsWith("-"),
+  );
+  return positionalDirectory ?? configuredDirectory;
 }
 
 if (process.argv[1]?.endsWith("i3-cli.ts")) {

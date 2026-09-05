@@ -1,6 +1,6 @@
-# Pruebas manuales I2
+# Pruebas manuales I1, I2 e I3
 
-Este directorio contiene la validación manual previa a dar por cerrado el branch I2. Las pruebas no reemplazan `npm test`; validan integración local, HTTP, autenticación, MySQL, ACL, readiness y ausencia de datos sensibles.
+Este directorio contiene la validación manual del proyecto. Las pruebas no reemplazan `npm test`; validan integración local, HTTP, autenticación, MySQL, ACL, readiness, ingesta/indexación y ausencia de datos sensibles.
 
 ## Orden recomendado
 
@@ -9,6 +9,8 @@ Este directorio contiene la validación manual previa a dar por cerrado el branc
 3. [03 — HTTP con Keycloak/JWKS](./03-http-keycloak.md)
 4. [04 — MySQL, migraciones y ACL](./04-mysql-acl.md)
 5. [05 — Seguridad y operación](./05-security-operations.md)
+6. [06 - I3 ingesta e indexacion](./06-i3-ingestion-indexing.md)
+7. [Manual I3 - busqueda hibrida](./i3-hybrid-retrieval.md)
 
 ## Criterio de aprobación
 
@@ -27,3 +29,5 @@ npm test
 ```
 
 Usar dos terminales para los escenarios HTTP: una para el servidor y otra para las llamadas. Los puertos por defecto son `8787` para health/readiness y `8790` para MCP HTTP.
+
+Para los casos I3, levantar adicionalmente MySQL y Qdrant y configurar `KCP_I3_ENABLED=true`. El caso 06 cubre ingesta e indexacion; el documento I3 cubre busqueda hibrida, ACL, incompatibilidad de coleccion y fallback lexical.

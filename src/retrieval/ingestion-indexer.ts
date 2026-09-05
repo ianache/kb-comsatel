@@ -50,6 +50,7 @@ export class IngestionIndexer {
         continue;
       }
 
+      await this.catalog.upsertDocument(document, document.contentHash);
       const runId = await this.catalog.beginIndexRun({
         knowledgeId: document.knowledgeId,
         sourceRevision: document.sourceRevision,
@@ -57,7 +58,6 @@ export class IngestionIndexer {
         dimension: this.embeddings.dimension ?? 0,
       });
       try {
-        await this.catalog.upsertDocument(document, document.contentHash);
         const chunks = chunkDocument(document, this.options.chunk);
         const points: VectorPoint[] = [];
         for (let offset = 0; offset < chunks.length; offset += this.batchSize) {
