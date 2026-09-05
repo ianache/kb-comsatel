@@ -39,3 +39,11 @@ smoke:
   stage: validate
   script:
     - npm run smoke
+
+i3-integration:
+  stage: validate
+  rules:
+    - if: '$KCP_I3_INTEGRATION == "true"'
+    - when: never
+  script:
+    - node scripts/i3-integration-smoke.mjs

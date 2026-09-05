@@ -1,0 +1,15 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.15.1
+    ports:
+      - "127.0.0.1:${KCP_I3_QDRANT_PORT:-6333}:6333"
+    volumes:
+      - kcp-i3-qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:6333/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  kcp-i3-qdrant:

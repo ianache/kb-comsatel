@@ -63,6 +63,10 @@ The liveness endpoint is `GET /health`, readiness is `GET /ready`, and the MCP e
 
 I2 does not implement Qdrant, embeddings, hybrid semantic retrieval, Vault runtime calls, Kubernetes deployment, portal ingestion, source connectors, mutation tools, or web UI.
 
+## I3 opt-in ingestion and hybrid retrieval
+
+I3 adds filesystem document ingestion, deterministic canonicalization/chunking, configurable embeddings, Qdrant vectors, MySQL index state, ACL-aware hybrid retrieval, and idempotent reindexing. It requires MySQL and Qdrant; `local-test` is available for deterministic local checks. See `docs/operations/i3-indexing.md` and `docs/manual-tests/i3-hybrid-retrieval.md`.
+
 See `docs/operations/i1-local-development.md` for setup and operating details.
 
 ```
