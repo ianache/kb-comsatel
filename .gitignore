@@ -13,3 +13,4 @@ graph-output/
 out/
 tmp/
 temp/
+.worktrees/
