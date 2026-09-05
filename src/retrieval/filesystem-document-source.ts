@@ -54,7 +54,14 @@ export const manifestDocumentSchema = z
   .strict();
 
 const manifestSchema = z
-  .object({ documents: z.array(manifestDocumentSchema) })
+  .object({
+    documents: z.array(manifestDocumentSchema),
+    contractVersion: z.string().optional(),
+    corpusHash: z.string().optional(),
+    counts: z.record(z.string(), z.number()).optional(),
+    errors: z.array(z.unknown()).optional(),
+    warnings: z.array(z.unknown()).optional(),
+  })
   .strict();
 
 export interface FilesystemDocumentSourceOptions {
