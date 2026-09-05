@@ -1,11 +1,13 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createSeedRepository } from "./catalog/seed.js";
 import { loadConfig } from "./config.js";
-import { ContextEngine, MemoryAuditSink } from "./engine/context-engine.js";
+import { ContextEngine } from "./engine/context-engine.js";
 import { createMcpServer } from "./mcp/adapter.js";
+import { createHttpMcpServer, type HttpMcpServer } from "./mcp/http-server.js";
+import { localPrincipal } from "./mcp/tools.js";
 import { createHealthServer, type HealthServer } from "./ops/health-server.js";
+import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
 
 export interface Application {
   start(): Promise<void>;
@@ -16,6 +18,8 @@ function createRuntime(enableStdio: boolean): Application {
   const config = loadConfig(process.env as Record<string, string | undefined>);
   let healthServer: HealthServer | undefined;
   let closeMcpServer: (() => Promise<void>) | undefined;
+  let httpServer: HttpMcpServer | undefined;
+  let closeDependencies: (() => Promise<void>) | undefined;
   let isReady = false;
   let started = false;
   let startPromise: Promise<void> | undefined;
@@ -28,6 +32,10 @@ function createRuntime(enableStdio: boolean): Application {
       await closeMcpServer?.();
     } finally {
       closeMcpServer = undefined;
+      await httpServer?.close();
+      httpServer = undefined;
+      await closeDependencies?.();
+      closeDependencies = undefined;
       await healthServer?.close();
       healthServer = undefined;
       started = false;
@@ -48,15 +56,33 @@ function createRuntime(enableStdio: boolean): Application {
             isReady: () => isReady,
           });
 
-          const repository = createSeedRepository();
-          const auditSink = new MemoryAuditSink();
-          const engine = new ContextEngine(repository, auditSink);
+          const dependencies = await createRuntimeDependencies(config);
+          closeDependencies = dependencies.close;
+          const engine = new ContextEngine(
+            dependencies.repository,
+            dependencies.auditSink,
+          );
 
           if (enableStdio) {
             const server = createMcpServer(engine);
             const transport = new StdioServerTransport();
             await server.connect(transport);
             closeMcpServer = () => server.close();
+          }
+
+          if (config.httpEnabled) {
+            httpServer = createHttpMcpServer({
+              host: config.host,
+              port: config.httpPort,
+              maxBodyBytes: config.httpMaxBodyBytes,
+              engine,
+              principalResolver: dependencies.principalResolver,
+              localPrincipal: config.httpLocalMode ? localPrincipal : undefined,
+            });
+            await httpServer.app.listen({
+              host: config.host,
+              port: config.httpPort,
+            });
           }
 
           isReady = true;

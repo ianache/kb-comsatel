@@ -28,6 +28,9 @@ export function createHttpMcpServer({
   principalResolver,
   localPrincipal,
 }: HttpMcpServerOptions): HttpMcpServer {
+  if (!principalResolver && !localPrincipal) {
+    throw new Error("HTTP authentication is not configured");
+  }
   const app = fastify({ bodyLimit: maxBodyBytes, exposeHeadRoutes: false });
 
   app.post("/mcp", async (request, reply) => {
