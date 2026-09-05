@@ -13,6 +13,7 @@ import type {
 } from "../domain/schemas.js";
 import type { KnowledgeRepository } from "./repository.js";
 import type { SqlExecutor } from "./sql-executor.js";
+import type { ChunkReader, HydratedChunk } from "../retrieval/chunk-reader.js";
 import {
   mapArtifact,
   mapCitation,
@@ -90,7 +91,9 @@ function safeDatabaseError(error: unknown): KcpError {
   return new KcpError("INTERNAL_ERROR", "Knowledge catalog unavailable");
 }
 
-export class MySqlKnowledgeRepository implements KnowledgeRepository {
+export class MySqlKnowledgeRepository
+  implements KnowledgeRepository, ChunkReader
+{
   constructor(private readonly executor: SqlExecutor) {}
 
   async search(
@@ -203,6 +206,46 @@ export class MySqlKnowledgeRepository implements KnowledgeRepository {
         [domain, ...acl.params],
       );
       return rows.length === 0 ? null : mapTaxonomy(rows[0]!);
+    } catch (error) {
+      throw safeDatabaseError(error);
+    }
+  }
+
+  async readSearchItems(
+    chunkIds: readonly string[],
+    principal: AccessPrincipal,
+  ): Promise<HydratedChunk[]> {
+    if (chunkIds.length === 0) return [];
+    try {
+      const acl = aclPredicate(principal);
+      const rows = await this.executor.query<KnowledgeRow>(
+        `SELECT ${columns}, c.chunk_id, c.chunk_text
+         FROM knowledge_chunks c
+         JOIN knowledge_artifacts a ON a.knowledge_id = c.knowledge_id
+         JOIN knowledge_revisions r
+           ON r.knowledge_id = c.knowledge_id AND r.source_revision = c.source_revision
+         JOIN knowledge_excerpts e
+           ON e.knowledge_id = r.knowledge_id AND e.source_revision = r.source_revision
+         WHERE c.chunk_id IN (${placeholders(chunkIds)})
+           AND (r.stale_after IS NULL OR r.stale_after > UTC_TIMESTAMP(3))
+           AND ${acl.sql}`,
+        [...chunkIds, ...acl.params],
+      );
+      return rows.map((row) => ({
+        chunkId: String(row.chunk_id),
+        result: {
+          knowledgeId: String(row.knowledge_id),
+          excerpt: String(row.chunk_text),
+          relevanceScore: 0,
+          trust:
+            row.current_status === "deprecated"
+              ? "deprecated"
+              : row.verified_at
+                ? "verified"
+                : "unverified",
+          citation: mapCitation(row),
+        },
+      }));
     } catch (error) {
       throw safeDatabaseError(error);
     }
