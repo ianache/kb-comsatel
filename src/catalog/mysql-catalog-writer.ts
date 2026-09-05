@@ -13,6 +13,39 @@ import type {
 export class MySqlCatalogWriter implements CatalogWriter {
   constructor(private readonly executor: SqlExecutor) {}
 
+  async getRevisionState(
+    knowledgeId: string,
+    sourceRevision: string,
+  ): Promise<{ contentHash: string; indexed: boolean } | null> {
+    try {
+      const rows = await this.executor.query<{
+        content_hash: string;
+        indexed: number;
+      }>(
+        `SELECT r.content_hash,
+                EXISTS (
+                  SELECT 1 FROM knowledge_index_runs i
+                  WHERE i.knowledge_id = r.knowledge_id
+                    AND i.source_revision = r.source_revision
+                    AND i.status = 'completed'
+                ) AS indexed
+         FROM knowledge_revisions r
+         WHERE r.knowledge_id = ? AND r.source_revision = ?
+         LIMIT 1`,
+        [knowledgeId, sourceRevision],
+      );
+      const row = rows[0];
+      return row === undefined
+        ? null
+        : {
+            contentHash: String(row.content_hash),
+            indexed: Boolean(row.indexed),
+          };
+    } catch {
+      throw new KcpError("INTERNAL_ERROR", "Knowledge index unavailable");
+    }
+  }
+
   async beginIndexRun(input: IndexRunInput): Promise<string> {
     const runId = randomUUID();
     try {

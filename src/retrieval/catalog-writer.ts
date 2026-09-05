@@ -10,6 +10,10 @@ export interface IndexRunInput {
 }
 
 export interface CatalogWriter {
+  getRevisionState(
+    knowledgeId: string,
+    sourceRevision: string,
+  ): Promise<{ contentHash: string; indexed: boolean } | null>;
   beginIndexRun(input: IndexRunInput): Promise<string>;
   upsertDocument(document: SourceDocument, contentHash: string): Promise<void>;
   replaceChunks(

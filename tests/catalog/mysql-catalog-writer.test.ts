@@ -72,6 +72,14 @@ describe("MySqlCatalogWriter", () => {
     expect(calls.flatMap((call) => call.params)).toContain(document.content);
   });
 
+  it("reads revision state with parameterized metadata", async () => {
+    const { executor } = fakeExecutor();
+    executor.query = async () => [{ content_hash: "hash-1", indexed: 1 }];
+    await expect(
+      new MySqlCatalogWriter(executor).getRevisionState("doc-1", "rev-1"),
+    ).resolves.toEqual({ contentHash: "hash-1", indexed: true });
+  });
+
   it("maps database failures to a safe catalog error", async () => {
     const executor = fakeExecutor().executor;
     executor.execute = async () => {

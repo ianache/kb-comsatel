@@ -34,6 +34,7 @@ it("accepts independent fakes for I3 retrieval boundaries", async () => {
     close: async () => undefined,
   };
   const catalog: CatalogWriter = {
+    getRevisionState: async () => null,
     beginIndexRun: async (_input: IndexRunInput) => "run-1",
     upsertDocument: async () => undefined,
     replaceChunks: async () => undefined,
