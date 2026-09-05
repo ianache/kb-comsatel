@@ -71,7 +71,8 @@ export class GitLabHttpAdapter implements GitLabPort {
     );
     if (body === null) return null;
     const parsed = gitlabBranchSchema.safeParse(body);
-    if (!parsed.success) throw unavailable();
+    if (!parsed.success)
+      throw unavailable(undefined, "invalid branch response");
     return { name: parsed.data.name, sha: parsed.data.commit.id };
   }
 
@@ -89,7 +90,8 @@ export class GitLabHttpAdapter implements GitLabPort {
       { method: "GET" },
     );
     const parsed = z.array(gitlabMergeRequestSchema).safeParse(body);
-    if (!parsed.success) throw unavailable();
+    if (!parsed.success)
+      throw unavailable(undefined, "invalid merge request response");
     const match = parsed.data.find((item) =>
       item.description.includes(
         `<!-- kcp-publication: ${input.identityKey} -->`,
@@ -108,7 +110,8 @@ export class GitLabHttpAdapter implements GitLabPort {
       { method: "POST" },
     );
     const parsed = gitlabBranchSchema.safeParse(body);
-    if (!parsed.success) throw unavailable();
+    if (!parsed.success)
+      throw unavailable(undefined, "invalid branch response");
     return { name: parsed.data.name, sha: parsed.data.commit.id };
   }
 
@@ -129,7 +132,8 @@ export class GitLabHttpAdapter implements GitLabPort {
       },
     );
     const parsed = gitlabCommitSchema.safeParse(body);
-    if (!parsed.success) throw unavailable();
+    if (!parsed.success)
+      throw unavailable(undefined, "invalid commit response");
     return { id: parsed.data.id, webUrl: parsed.data.web_url };
   }
 
@@ -151,7 +155,8 @@ export class GitLabHttpAdapter implements GitLabPort {
       },
     );
     const parsed = gitlabMergeRequestSchema.safeParse(body);
-    if (!parsed.success) throw unavailable();
+    if (!parsed.success)
+      throw unavailable(undefined, "invalid merge request response");
     return mapMergeRequest(parsed.data);
   }
 
@@ -164,7 +169,8 @@ export class GitLabHttpAdapter implements GitLabPort {
       { method: "GET" },
     );
     const approved = approvalStateSchema.safeParse(approvals);
-    if (!approved.success) throw unavailable();
+    if (!approved.success)
+      throw unavailable(undefined, "invalid approvals response");
     const pipelines = await this.request(
       this.projectUrl(
         input.projectId,
@@ -175,7 +181,8 @@ export class GitLabHttpAdapter implements GitLabPort {
     const parsedPipelines = z
       .array(z.object({ status: z.string() }).strict())
       .safeParse(pipelines);
-    if (!parsedPipelines.success) throw unavailable();
+    if (!parsedPipelines.success)
+      throw unavailable(undefined, "invalid pipelines response");
     const status = parsedPipelines.data[0]?.status;
     const ci =
       status === "success" || status === "failed" || status === "running"
@@ -210,7 +217,18 @@ export class GitLabHttpAdapter implements GitLabPort {
       return (await response.json()) as unknown;
     } catch (error) {
       if (error instanceof PublicationError) throw error;
-      throw unavailable();
+      if (error instanceof SyntaxError) {
+        throw unavailable(undefined, "invalid JSON response");
+      }
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw unavailable(undefined, "request timed out");
+      }
+      throw unavailable(
+        undefined,
+        error instanceof Error
+          ? `transport error (${error.name})`
+          : "transport error",
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -269,11 +287,13 @@ function httpError(status: number): PublicationError {
   return unavailable(status);
 }
 
-function unavailable(status?: number): PublicationError {
+function unavailable(status?: number, reason?: string): PublicationError {
   return new PublicationError(
     "GITLAB_UNAVAILABLE",
     status === undefined
-      ? "GitLab is unavailable"
+      ? reason === undefined
+        ? "GitLab is unavailable"
+        : `GitLab unavailable: ${reason}`
       : `GitLab request failed (HTTP ${status})`,
   );
 }
