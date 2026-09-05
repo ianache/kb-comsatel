@@ -1,0 +1,32 @@
+{
+  "documents": [
+    {
+      "knowledgeId": "i3-public-unit-rule",
+      "title": "I3 public unit rule",
+      "sourceSystem": "gitlab",
+      "sourceUri": "https://example.test/i3/public-unit-rule",
+      "sourceRevision": "rev-1",
+      "product": "cgo",
+      "domain": "units",
+      "classification": "internal",
+      "status": "stable",
+      "path": "public-unit-rule.md",
+      "locator": { "sectionPath": "rules" },
+      "acl": { "classifications": ["internal"] }
+    },
+    {
+      "knowledgeId": "i3-restricted-adr",
+      "title": "I3 restricted architecture decision",
+      "sourceSystem": "gitlab",
+      "sourceUri": "https://example.test/i3/restricted-adr",
+      "sourceRevision": "rev-1",
+      "product": "cgo",
+      "domain": "units",
+      "classification": "internal",
+      "status": "stable",
+      "path": "restricted-adr.md",
+      "locator": { "sectionPath": "decision" },
+      "acl": { "groups": ["architecture-reviewers"], "classifications": ["internal"] }
+    }
+  ]
+}
