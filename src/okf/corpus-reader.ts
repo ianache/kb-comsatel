@@ -61,7 +61,7 @@ export async function readGitLabOkfFiles(
   const entries = await input.source.listTree({
     projectId: input.projectId,
     ref: input.ref,
-    root: input.root,
+    root: input.root ?? "",
   });
   const files = entries
     .filter(
