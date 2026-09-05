@@ -50,8 +50,8 @@ $env:KCP_GITLAB_SOURCE_REF = "main"
 $env:KCP_GITLAB_SOURCE_ROOT = "knowledge"
 $env:KCP_GITLAB_SOURCE_TIMEOUT_MS = "60000"
 
-npm run okf:validate -- --source gitlab
-npm run okf:compile -- --source gitlab --output-dir .tmp/i5a-gitlab-projection
+npm run okf:source-validate
+npm run okf:source-compile
 ```
 
 Esperado:
