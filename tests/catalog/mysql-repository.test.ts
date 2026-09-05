@@ -84,3 +84,18 @@ it("returns null for an unauthorized exact artifact", async () => {
   ).resolves.toBeNull();
   expect(executor.calls[0]?.params).toContain("artifact-restricted-adr");
 });
+
+it("hydrates the successor for an exact artifact", async () => {
+  const executor = new RecordingSqlExecutor([
+    { ...publicRow, successor_knowledge_id: "replacement-rule" },
+  ]);
+  const repository = new MySqlKnowledgeRepository(executor);
+
+  await expect(
+    repository.getArtifact(
+      "artifact-public-unit-rule",
+      undefined,
+      publicPrincipal,
+    ),
+  ).resolves.toMatchObject({ successorKnowledgeId: "replacement-rule" });
+});

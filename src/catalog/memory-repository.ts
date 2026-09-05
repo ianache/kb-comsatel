@@ -229,8 +229,9 @@ export class MemoryKnowledgeRepository implements KnowledgeRepository {
 
   private isStale(artifact: KnowledgeArtifact): boolean {
     return (
-      artifact.staleAfter !== undefined &&
-      new Date(artifact.staleAfter) <= now()
+      artifact.status === "stale" ||
+      (artifact.staleAfter !== undefined &&
+        new Date(artifact.staleAfter) <= now())
     );
   }
 

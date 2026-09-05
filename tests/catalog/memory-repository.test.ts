@@ -112,4 +112,14 @@ describe("MemoryKnowledgeRepository", () => {
       createSeedRepository().listStale({ status: ["draft"] }, publicPrincipal),
     ).resolves.toEqual([]);
   });
+
+  it("does not return an explicitly stale artifact in a normal search", async () => {
+    const repository = createSeedRepository();
+    await expect(
+      repository.search(
+        { query: "delivery", filters: { status: ["stale"] }, limit: 8 },
+        publicPrincipal,
+      ),
+    ).resolves.toMatchObject({ results: [] });
+  });
 });

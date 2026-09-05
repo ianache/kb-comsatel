@@ -8,10 +8,16 @@ export function buildVectorFilter(
   principal: AccessPrincipal,
   filters: KnowledgeFilters = {},
 ): VectorFilter {
+  const statuses = filters.status ?? [
+    "stable",
+    "draft",
+    "deprecated",
+    "superseded",
+  ];
   const must: VectorFilter["must"] = [
     {
       key: "status",
-      match: { any: ["stable", "draft", "deprecated", "superseded"] },
+      match: { any: statuses },
     },
   ];
   if (principal.products.length > 0) {
@@ -32,7 +38,6 @@ export function buildVectorFilter(
   addFilter("product", filters.product);
   addFilter("domain", filters.domain);
   addFilter("artifact_type", filters.artifactType);
-  addFilter("status", filters.status);
   addFilter("source_system", filters.sourceSystem);
   return { must };
 }

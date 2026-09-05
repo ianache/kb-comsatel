@@ -25,3 +25,19 @@ it("builds bounded Qdrant filters from the access principal", () => {
   expect(JSON.stringify(filter)).not.toContain("user-1");
   expect(JSON.stringify(filter)).not.toContain("architecture-reviewers");
 });
+
+it("allows an explicit stale status filter without making stale the default", () => {
+  const filter = buildVectorFilter(
+    {
+      id: "user-1",
+      roles: [],
+      groups: [],
+      products: [],
+      domains: [],
+      classifications: [],
+    },
+    { status: ["stale"] },
+  );
+
+  expect(filter.must[0]).toEqual({ key: "status", match: { any: ["stale"] } });
+});
