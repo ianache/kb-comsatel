@@ -1,6 +1,6 @@
 # Knowledge Context MCP I3 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add opt-in document ingestion, deterministic chunking, configurable embeddings, Qdrant vector search, and hybrid lexical/vector retrieval while preserving the I1/I2 MCP contract.
 
@@ -50,7 +50,7 @@
 - `VectorStore.ensureCollection(spec)`, `upsert(points)`, `deleteByRevision(knowledgeId, sourceRevision)`, `search(query, filter, limit)`, `health()`, and `close()`.
 - `CatalogWriter.beginIndexRun`, `upsertDocument`, `replaceChunks`, `completeIndexRun`, and `failIndexRun`.
 
-- [ ] **Step 1: Write failing interface tests**
+- [x] **Step 1: Write failing interface tests**
 
 ```ts
 it("accepts independent fakes for source, embeddings, vectors, and catalog", async () => {
@@ -67,17 +67,17 @@ it("accepts independent fakes for source, embeddings, vectors, and catalog", asy
 });
 ```
 
-- [ ] **Step 2: Run focused tests and verify the expected failure**
+- [x] **Step 2: Run focused tests and verify the expected failure**
 
 Run: `npm test -- tests/retrieval/i3-interfaces.test.ts tests/config-i3.test.ts`
 
 Expected: FAIL because I3 contracts and configuration fields do not exist.
 
-- [ ] **Step 3: Add the contract types and schemas**
+- [x] **Step 3: Add the contract types and schemas**
 
 Define the exact types above. Use Zod schemas for source manifests, collection specifications, vector points, search filters, and index-run statuses. Keep source content in the source boundary only; vector payload types may contain identifiers and filter dimensions but no text.
 
-- [ ] **Step 4: Add explicit configuration**
+- [x] **Step 4: Add explicit configuration**
 
 Add these fields and defaults:
 
@@ -103,7 +103,7 @@ KCP_I3_CANDIDATE_MULTIPLIER=3
 
 Reject I3 startup when enabled without Qdrant URL/collection, a positive dimension, valid chunk bounds, or an embedding URL unless the deterministic local provider is explicitly selected. Reject weights whose sum is not positive.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 Run: `npm test -- tests/retrieval/i3-interfaces.test.ts tests/config-i3.test.ts && npm run typecheck && npm run format:check`
 
@@ -132,29 +132,29 @@ git commit -m "feat: add I3 retrieval contracts and configuration"
 - `knowledge_chunks` stores `chunk_id`, `knowledge_id`, `source_revision`, ordinal, bounded chunk text, content hash, token/character estimate, locator fields, and timestamps.
 - `knowledge_index_runs` stores run ID, source revision, status (`running|completed|failed`), model, dimension, counts, bounded failure code, and timestamps.
 
-- [ ] **Step 1: Write failing migration assertions**
+- [x] **Step 1: Write failing migration assertions**
 
 Assert that migration SQL contains the two tables, foreign keys to artifact/revision identity, uniqueness on `(knowledge_id, source_revision, ordinal)`, and indexes for revision lookup, content hash, status, and lexical search.
 
-- [ ] **Step 2: Run the migration tests to verify failure**
+- [x] **Step 2: Run the migration tests to verify failure**
 
 Run: `npm test -- tests/catalog/i3-migrations.test.ts tests/catalog/mysql-catalog-writer.test.ts`
 
 Expected: FAIL because the new migrations and writer do not exist.
 
-- [ ] **Step 3: Add the migrations**
+- [x] **Step 3: Add the migrations**
 
 Use InnoDB, utf8mb4, `DATETIME(3)` UTC timestamps, bounded `TEXT`/`VARCHAR` fields, foreign keys, and a full-text index over chunk text/title if supported by the existing MySQL version. Do not add columns for prompts, JWTs, credentials, or raw vectors.
 
-- [ ] **Step 4: Implement parameterized writer operations**
+- [x] **Step 4: Implement parameterized writer operations**
 
 Use only `SqlExecutor.execute/query`. `replaceChunks` must delete only the target artifact revision, insert the new chunks with parameters, and never concatenate source content into SQL. `failIndexRun` stores a safe failure code, not the original exception text.
 
-- [ ] **Step 5: Add writer tests**
+- [x] **Step 5: Add writer tests**
 
 Use a recording fake executor to assert parameter binding, revision scoping, idempotent replacement, and absence of sensitive field names/content in SQL strings.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 Run: `npm test -- tests/catalog/i3-migrations.test.ts tests/catalog/mysql-catalog-writer.test.ts tests/catalog/migrations.test.ts && npm run typecheck && npm run format:check`
 
@@ -185,27 +185,27 @@ git commit -m "feat: add I3 chunk and index-state catalog schema"
 - `chunkDocument(document, options): readonly DocumentChunk[]`.
 - `FilesystemDocumentSource({ directory, manifestFile }): DocumentSource`.
 
-- [ ] **Step 1: Write failing canonicalization tests**
+- [x] **Step 1: Write failing canonicalization tests**
 
 Cover CRLF/LF normalization, Unicode normalization, trimmed whitespace, repeated blank-line collapse, stable content hash, and preservation of source locator metadata.
 
-- [ ] **Step 2: Write failing chunking tests**
+- [x] **Step 2: Write failing chunking tests**
 
 Cover heading-aware boundaries, configured overlap, hard maximum, stable ordinal/chunk ID, no empty chunks, and deterministic output on repeated runs.
 
-- [ ] **Step 3: Write failing filesystem-source tests**
+- [x] **Step 3: Write failing filesystem-source tests**
 
 Use a fixture manifest with two documents. Assert required metadata, relative content loading, rejection of path traversal, and safe errors for malformed manifests.
 
-- [ ] **Step 4: Implement canonicalizer and chunker**
+- [x] **Step 4: Implement canonicalizer and chunker**
 
 Canonicalize before hashing. Split first at headings/paragraphs, then hard-wrap oversized sections. Derive IDs from `knowledgeId|sourceRevision|ordinal` using a stable hash. Preserve section/page/line locators on each chunk.
 
-- [ ] **Step 5: Implement the filesystem source**
+- [x] **Step 5: Implement the filesystem source**
 
 Validate the manifest with Zod, resolve content paths beneath the configured root, reject absolute paths and `..` escapes, and emit only normalized `SourceDocument` records.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 Run: `npm test -- tests/retrieval/canonicalizer.test.ts tests/retrieval/chunker.test.ts tests/retrieval/filesystem-document-source.test.ts && npm run typecheck && npm run format:check`
 
@@ -236,27 +236,27 @@ git commit -m "feat: add deterministic I3 document preparation"
 - `DeterministicEmbeddingProvider` returns stable vectors for offline tests only.
 - `QdrantVectorStore` maps `VectorStore` operations to Qdrant REST endpoints using injected `fetch` for tests.
 
-- [ ] **Step 1: Write failing embedding tests**
+- [x] **Step 1: Write failing embedding tests**
 
 Assert batching preserves order, sends model/texts in the request body, includes authorization only when configured, rejects malformed responses/dimension mismatch, times out, and never includes the API key in thrown messages.
 
-- [ ] **Step 2: Write failing Qdrant mapping tests**
+- [x] **Step 2: Write failing Qdrant mapping tests**
 
 Assert collection creation/validation, point upsert, revision deletion, bounded query limit, payload mapping, cosine distance configuration, and safe mapping of non-2xx responses.
 
-- [ ] **Step 3: Write failing ACL filter tests**
+- [x] **Step 3: Write failing ACL filter tests**
 
 Build Qdrant filters from principal products/domains/classifications and active status. Assert that no raw SQL or complete principal claims are sent to Qdrant and empty dimensions do not create invalid filters.
 
-- [ ] **Step 4: Implement providers and vector store**
+- [x] **Step 4: Implement providers and vector store**
 
 Use `AbortController` for embedding timeout. Use Qdrant REST paths under the configured base URL, `wait=true` for writes, and payloads containing only IDs and filter dimensions. `health()` must validate collection dimension, distance, and model metadata.
 
-- [ ] **Step 5: Add opt-in Qdrant Compose service**
+- [x] **Step 5: Add opt-in Qdrant Compose service**
 
 Create `docker-compose.i3.yml` with Qdrant only, loopback binding, healthcheck, named volume, and no production credentials. Keep I2 Compose unchanged.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 Run: `npm test -- tests/retrieval/http-embedding-provider.test.ts tests/retrieval/qdrant-vector-store.test.ts tests/retrieval/vector-filters.test.ts && npm run typecheck && npm run format:check`
 
@@ -280,23 +280,23 @@ git commit -m "feat: add configurable embeddings and Qdrant vector store"
 - `IngestionIndexer.ingest(source: DocumentSource): Promise<IngestionSummary>`.
 - The indexer consumes `DocumentSource`, canonicalizer/chunker, `EmbeddingProvider`, `VectorStore`, and `CatalogWriter`.
 
-- [ ] **Step 1: Write failing idempotence tests**
+- [x] **Step 1: Write failing idempotence tests**
 
 Ingest the same two-document fixture twice. Assert the second run has zero new embeddings/upserts, one completed state per revision, and no duplicate chunks/vectors.
 
-- [ ] **Step 2: Write failing revision-replacement tests**
+- [x] **Step 2: Write failing revision-replacement tests**
 
 Change one source revision and content. Assert the old revision is deleted from the active vector set, the new chunks are written, and unchanged documents are not re-embedded.
 
-- [ ] **Step 3: Write failing failure-transition tests**
+- [x] **Step 3: Write failing failure-transition tests**
 
 Make embedding or Qdrant fail. Assert `failIndexRun` receives a bounded code, the new revision is not marked searchable, and the error contains no source text or credentials.
 
-- [ ] **Step 4: Implement the indexer state machine**
+- [x] **Step 4: Implement the indexer state machine**
 
 For each source document: canonicalize, hash, compare revision/hash state, begin run, chunk, embed in bounded batches, upsert vectors, replace catalog chunks, then complete the run. On failure, delete any newly written revision vectors when possible and mark the run failed.
 
-- [ ] **Step 5: Run checks and commit**
+- [x] **Step 5: Run checks and commit**
 
 Run: `npm test -- tests/retrieval/ingestion-indexer.test.ts tests/retrieval/canonicalizer.test.ts tests/retrieval/chunker.test.ts && npm run typecheck && npm run format:check`
 
@@ -324,27 +324,27 @@ git commit -m "feat: add idempotent I3 ingestion indexer"
 - `ChunkReader.readSearchItems(chunkIds, principal): Promise<SearchKnowledgeResult["results"]>`.
 - `HybridKnowledgeRepository implements KnowledgeRepository` and delegates direct reads/listing to the existing repository.
 
-- [ ] **Step 1: Write failing score-fusion tests**
+- [x] **Step 1: Write failing score-fusion tests**
 
 Cover weighted reciprocal rank, duplicate knowledge IDs, missing lexical/vector candidates, stable tie-breaking, and output cap at the requested limit.
 
-- [ ] **Step 2: Write failing hydration/ACL tests**
+- [x] **Step 2: Write failing hydration/ACL tests**
 
 Use fake lexical results and vector candidates. Assert vector IDs are hydrated through MySQL, unauthorized chunks are discarded, stale filters are respected, and Qdrant payload text is never returned directly.
 
-- [ ] **Step 3: Implement chunk reader**
+- [x] **Step 3: Implement chunk reader**
 
 Add a parameterized `readSearchItems` query to `MySqlKnowledgeRepository` that joins chunk, revision, artifact, and ACL predicates, maps citations/locators, and returns only authorized rows.
 
-- [ ] **Step 4: Implement score fusion**
+- [x] **Step 4: Implement score fusion**
 
 Use the configured lexical/vector weights and reciprocal-rank constant. Deduplicate by `knowledgeId`, retain the highest-scoring authorized chunk, and sort by score then `knowledgeId` then `chunkId`.
 
-- [ ] **Step 5: Implement hybrid repository search**
+- [x] **Step 5: Implement hybrid repository search**
 
 Embed the query once, run lexical and vector retrieval with candidate limit `min(60, input.limit * multiplier)`, tolerate vector failure when lexical results exist, hydrate vector IDs through MySQL, fuse, and return the existing `SearchKnowledgeResult` schema. Delegate all non-search methods unchanged.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 Run: `npm test -- tests/retrieval/score-fusion.test.ts tests/catalog/hybrid-repository.test.ts tests/catalog/mysql-repository.test.ts tests/engine/context-engine.test.ts && npm run typecheck && npm run format:check`
 
@@ -375,27 +375,27 @@ git commit -m "feat: add ACL-aware hybrid knowledge retrieval"
 - `createI3Runtime(config): { repository, indexer, health, close }`.
 - `npm run i3:index -- --source-dir <path>` runs the controlled ingestion path and prints only counts/status.
 
-- [ ] **Step 1: Write failing composition tests**
+- [x] **Step 1: Write failing composition tests**
 
 Assert I3-disabled configuration creates the existing in-memory runtime, I3-enabled local-test configuration creates filesystem source/deterministic embeddings/Qdrant client, and missing Qdrant or embedding settings fail before readiness.
 
-- [ ] **Step 2: Write failing CLI tests**
+- [x] **Step 2: Write failing CLI tests**
 
 Assert source directory and dry-run validation, successful count summary, nonzero exit on failed index run, and absence of document text/API keys in output.
 
-- [ ] **Step 3: Implement runtime composition**
+- [x] **Step 3: Implement runtime composition**
 
 Create the writer, source, embedding provider, vector store, indexer, and hybrid repository only when `KCP_I3_ENABLED=true`. Preserve I2 composition when false. Make startup call vector `health()` and keep readiness false until it succeeds.
 
-- [ ] **Step 4: Implement the ingestion command**
+- [x] **Step 4: Implement the ingestion command**
 
 Use `tsx` through a package script. Accept only source directory and optional `--dry-run`; use environment configuration for all service endpoints and secrets. Do not expose ingestion through the MCP server.
 
-- [ ] **Step 5: Add configuration examples**
+- [x] **Step 5: Add configuration examples**
 
 Document local deterministic mode and production-like mode separately. Keep all secrets blank or clearly local-only.
 
-- [ ] **Step 6: Run checks and commit**
+- [x] **Step 6: Run checks and commit**
 
 Run: `npm test -- tests/server/i3-composition.test.ts tests/ingestion/i3-cli.test.ts && npm run typecheck && npm run format:check`
 
@@ -417,23 +417,23 @@ git commit -m "feat: compose I3 runtime and ingestion command"
 - Create: `docs/manual-tests/i3-hybrid-retrieval.md`
 - Modify: `README.md`
 
-- [ ] **Step 1: Write the gated integration test**
+- [x] **Step 1: Write the gated integration test**
 
 Skip unless `KCP_I3_INTEGRATION=true`. When enabled, connect to disposable MySQL/Qdrant, apply migrations, ingest fixtures twice, query hybrid results, verify ACL isolation, change one revision, and verify replacement without duplicates.
 
-- [ ] **Step 2: Add the integration smoke script**
+- [x] **Step 2: Add the integration smoke script**
 
 Make the script exit zero with a clear skip message when the flag is absent and otherwise report only counts, statuses, latency, and collection health.
 
-- [ ] **Step 3: Add CI jobs**
+- [x] **Step 3: Add CI jobs**
 
 Keep the default CI suite offline. Add an opt-in integration job keyed by `KCP_I3_INTEGRATION`, with MySQL/Qdrant services only when the variable is explicitly supplied. Add the offline I3 unit/contract tests to the standard test job.
 
-- [ ] **Step 4: Document operations and manual tests**
+- [x] **Step 4: Document operations and manual tests**
 
 Document collection compatibility, reindex procedure, failed-run recovery, readiness behavior, source fixture format, ACL checks, secret handling, and cleanup commands.
 
-- [ ] **Step 5: Run the complete verification**
+- [x] **Step 5: Run the complete verification**
 
 Run:
 
@@ -448,7 +448,7 @@ node scripts/i3-integration-smoke.mjs
 
 Expected: all offline checks pass; the integration script prints an explicit skip unless `KCP_I3_INTEGRATION=true`; STDIO smoke still discovers seven tools and three resource templates.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/integration scripts/i3-integration-smoke.mjs .gitlab-ci.yml docs/operations/i3-indexing.md docs/manual-tests/i3-hybrid-retrieval.md README.md
@@ -463,19 +463,19 @@ git commit -m "test: add I3 integration smoke and operational guidance"
 - Create: `tests/security/i3-sensitive-output.test.ts`
 - Create: `tests/retrieval/i3-acceptance.test.ts`
 
-- [ ] **Step 1: Add sensitive-output tests**
+- [x] **Step 1: Add sensitive-output tests**
 
 Assert logs/errors/HTTP responses do not contain API keys, JWTs, prompts, full document text, SQL, vectors, or complete claims.
 
-- [ ] **Step 2: Add acceptance tests**
+- [x] **Step 2: Add acceptance tests**
 
 Assert I3 disabled preserves I2 behavior, I3 fixture ingestion is idempotent, changed revisions replace vectors, hybrid ordering is deterministic, ACL isolation holds, vector failure falls back only with lexical evidence, and readiness fails on dimension mismatch.
 
-- [ ] **Step 3: Run the final gate**
+- [x] **Step 3: Run the final gate**
 
 Run the complete commands from Task 8 plus `git diff --check`. Confirm Graphify is updated after all code/docs changes and record the final node/edge summary in the handoff.
 
-- [ ] **Step 4: Mark the plan complete and commit**
+- [x] **Step 4: Mark the plan complete and commit**
 
 Mark every completed checkbox in this plan, then:
 
