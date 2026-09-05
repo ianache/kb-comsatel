@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { okfDocumentSchema, type OkfDocument } from "./okf-schema.js";
-import { readOkfFiles } from "./corpus-reader.js";
+import {
+  readGitLabOkfFiles,
+  readOkfFiles,
+  type GitLabOkfSource,
+} from "./corpus-reader.js";
 import { validateGovernance } from "./governance.js";
 import { toSourceDocument, type GovernanceIssue } from "./okf-types.js";
 import type { SourceDocument } from "../retrieval/source-document.js";
@@ -8,6 +12,8 @@ import type { SourceDocument } from "../retrieval/source-document.js";
 export interface CompileOptions {
   mode: "draft" | "stable";
 }
+
+export type OkfCorpusSource = string | GitLabOkfSource;
 
 export interface ProjectionDocument {
   knowledgeId: string;
@@ -51,20 +57,24 @@ export interface CompiledCorpus {
 }
 
 export async function compileOkfCorpus(
-  inputDir: string,
+  input: OkfCorpusSource,
   _options: CompileOptions,
 ): Promise<CompiledCorpus> {
   const errors: GovernanceIssue[] = [];
   const warnings: GovernanceIssue[] = [];
   const rawFiles = [];
   try {
-    rawFiles.push(...(await readOkfFiles(inputDir)));
+    rawFiles.push(
+      ...(typeof input === "string"
+        ? await readOkfFiles(input)
+        : await readGitLabOkfFiles(input)),
+    );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to read OKF corpus";
     errors.push({
       code: "CORPUS_READ_FAILED",
-      file: inputDir,
+      file: typeof input === "string" ? input : input.projectId,
       field: "",
       message,
     });
@@ -75,6 +85,10 @@ export async function compileOkfCorpus(
     const parsed = okfDocumentSchema.safeParse({
       ...(isRecord(raw.frontmatter) ? raw.frontmatter : {}),
       file: raw.relativePath,
+      ...(raw.sourceUri === undefined ? {} : { sourceUri: raw.sourceUri }),
+      ...(raw.sourceRevision === undefined
+        ? {}
+        : { sourceRevision: raw.sourceRevision }),
       content: raw.content,
     });
     if (!parsed.success) {

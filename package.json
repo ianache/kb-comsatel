@@ -17,6 +17,8 @@
     "i3:index": "tsx src/ingestion/i3-cli.ts",
     "okf:validate": "tsx src/ingestion/okf-cli.ts validate",
     "okf:compile": "tsx src/ingestion/okf-cli.ts compile",
+    "okf:source-validate": "tsx src/ingestion/okf-cli.ts validate --source gitlab",
+    "okf:source-compile": "tsx src/ingestion/okf-cli.ts compile --source gitlab",
     "okf:index": "tsx src/ingestion/okf-cli.ts index",
     "okf:publication-plan": "tsx src/ingestion/okf-publication-cli.ts plan",
     "okf:publish": "tsx src/ingestion/okf-publication-cli.ts publish"

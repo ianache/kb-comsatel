@@ -22,6 +22,15 @@ describe("OKF CLI", () => {
       sourceDir: "fixtures/okf",
       outputDir: "out",
       mode: "stable",
+      source: "local",
+    });
+  });
+
+  it("accepts an explicit GitLab source", () => {
+    expect(parseOkfArgs(["validate", "--source", "gitlab"])).toMatchObject({
+      command: "validate",
+      source: "gitlab",
+      mode: "stable",
     });
   });
 

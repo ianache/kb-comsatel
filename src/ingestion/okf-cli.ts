@@ -1,12 +1,16 @@
 import { compileOkfCorpus, type CompileOptions } from "../okf/compiler.js";
 import { writeProjection } from "../okf/projection-writer.js";
 import { runI3Indexing } from "./i3-cli.js";
+import { loadConfig } from "../config.js";
+import { GitLabHttpSourceAdapter } from "./gitlab-http-source-adapter.js";
+import { SourceConfigurationError } from "./source-errors.js";
 
 export interface OkfArgs {
   command: "validate" | "compile" | "index";
   sourceDir: string;
   outputDir: string;
   mode: CompileOptions["mode"];
+  source: "local" | "gitlab";
 }
 
 export function parseOkfArgs(args: readonly string[]): OkfArgs {
@@ -18,13 +22,15 @@ export function parseOkfArgs(args: readonly string[]): OkfArgs {
   let sourceDir: string | undefined;
   let outputDir: string | undefined;
   let mode: OkfArgs["mode"] = "stable";
+  let source: OkfArgs["source"] = "local";
   for (let index = 1; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === undefined) continue;
     if (
       argument === "--source-dir" ||
       argument === "--output-dir" ||
-      argument === "--mode"
+      argument === "--mode" ||
+      argument === "--source"
     ) {
       const value = args[index + 1];
       if (value === undefined || value.startsWith("-")) {
@@ -38,16 +44,22 @@ export function parseOkfArgs(args: readonly string[]): OkfArgs {
         }
         mode = value;
       }
+      if (argument === "--source") {
+        if (value !== "local" && value !== "gitlab") {
+          throw new Error("OKF source must be local or gitlab");
+        }
+        source = value;
+      }
       index += 1;
     } else if (!argument.startsWith("-")) {
       positional.push(argument);
     }
   }
-  sourceDir ??= positional[0];
+  sourceDir ??= positional[0] ?? (source === "gitlab" ? "" : undefined);
   outputDir ??= positional[1] ?? ".tmp/i4a-okf-projection";
   if (sourceDir === undefined)
     throw new Error("OKF source directory is required");
-  return { command, sourceDir, outputDir, mode };
+  return { command, sourceDir, outputDir, mode, source };
 }
 
 export async function runOkfCommand(
@@ -56,7 +68,8 @@ export async function runOkfCommand(
 ): Promise<number> {
   try {
     const options = parseOkfArgs(args);
-    const corpus = await compileOkfCorpus(options.sourceDir, {
+    const corpusSource = await resolveCorpusSource(environment, options);
+    const corpus = await compileOkfCorpus(corpusSource, {
       mode: options.mode,
     });
     console.log(JSON.stringify(corpus.manifest.counts));
@@ -79,6 +92,35 @@ export async function runOkfCommand(
     console.error(JSON.stringify({ error: message }));
     return 2;
   }
+}
+
+async function resolveCorpusSource(
+  environment: Record<string, string | undefined>,
+  options: OkfArgs,
+): Promise<string | Parameters<typeof compileOkfCorpus>[0]> {
+  if (options.source === "local") return options.sourceDir;
+  const config = loadConfig(environment);
+  if (!config.gitlabSourceEnabled) {
+    throw new SourceConfigurationError(
+      "GitLab source is disabled; set KCP_GITLAB_SOURCE_ENABLED=true",
+    );
+  }
+  if (!config.gitlabSourceProjectId || !config.gitlabSourceToken) {
+    throw new SourceConfigurationError(
+      "GitLab source configuration is incomplete",
+    );
+  }
+  return {
+    kind: "gitlab",
+    source: new GitLabHttpSourceAdapter({
+      baseUrl: config.gitlabSourceBaseUrl,
+      token: config.gitlabSourceToken,
+      timeoutMs: config.gitlabSourceTimeoutMs,
+    }),
+    projectId: config.gitlabSourceProjectId,
+    ref: config.gitlabSourceRef,
+    root: config.gitlabSourceRoot,
+  };
 }
 
 if (process.argv[1]?.endsWith("okf-cli.ts")) {
