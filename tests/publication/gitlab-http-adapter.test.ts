@@ -70,6 +70,12 @@ describe("GitLabHttpAdapter", () => {
         files: [{ path: "knowledge/rule.md", content: "body" }],
       }),
     ).resolves.toMatchObject({ id: "commit-1" });
+    const commitRequest = requests.find((request) =>
+      request.url.endsWith("/repository/commits"),
+    );
+    expect(
+      JSON.parse(String(commitRequest?.init?.body)).actions[0].action,
+    ).toBe("create");
     await expect(
       adapter.createMergeRequest({
         projectId: "project-1",

@@ -124,7 +124,7 @@ export class GitLabHttpAdapter implements GitLabPort {
           branch: input.branch,
           commit_message: input.commitMessage,
           actions: input.files.map((file) => ({
-            action: "upsert",
+            action: "create",
             file_path: file.path,
             content: file.content,
           })),
