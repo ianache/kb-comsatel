@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { compileOkfCorpus } from "../../src/okf/compiler.js";
 import { FakeGitLabAdapter } from "../../src/publication/fake-gitlab-adapter.js";
 import { PublicationService } from "../../src/publication/publication-service.js";
@@ -106,5 +106,61 @@ describe("PublicationService proposals", () => {
     );
 
     expect(JSON.stringify(result)).not.toContain("Verified unit identifiers");
+  });
+
+  it("requires approval before stable publication", async () => {
+    const adapter = new FakeGitLabAdapter();
+    const indexApprovedProjection = vi.fn(async () => undefined);
+    const service = new PublicationService(adapter, indexApprovedProjection);
+    const proposal = await service.createProposal(await requestFromFixture());
+
+    await expect(
+      service.publishApproved({
+        ...(await requestFromFixture()),
+        mode: "approved-publish",
+      }),
+    ).rejects.toMatchObject({ code: "APPROVAL_REQUIRED" });
+    expect(indexApprovedProjection).not.toHaveBeenCalled();
+    expect(proposal.mergeRequestIid).toBe(1);
+  });
+
+  it("indexes only after approval and green CI", async () => {
+    const adapter = new FakeGitLabAdapter();
+    const indexApprovedProjection = vi.fn(async () => undefined);
+    const service = new PublicationService(adapter, indexApprovedProjection);
+    const request = await requestFromFixture();
+    const proposal = await service.createProposal(request);
+    adapter.setGate(proposal.mergeRequestIid, {
+      approved: true,
+      ci: "success",
+    });
+
+    const result = await service.publishApproved({
+      ...request,
+      mode: "approved-publish",
+    });
+
+    expect(result).toMatchObject({
+      mergeRequestIid: proposal.mergeRequestIid,
+      mode: "approved-publish",
+      outcome: "stable-publish-authorized",
+      ciState: "success",
+    });
+    expect(indexApprovedProjection).toHaveBeenCalledOnce();
+  });
+
+  it("blocks stable publication when CI is not green", async () => {
+    const adapter = new FakeGitLabAdapter();
+    const service = new PublicationService(adapter, async () => undefined);
+    const request = await requestFromFixture();
+    const proposal = await service.createProposal(request);
+    adapter.setGate(proposal.mergeRequestIid, {
+      approved: true,
+      ci: "running",
+    });
+
+    await expect(
+      service.publishApproved({ ...request, mode: "approved-publish" }),
+    ).rejects.toMatchObject({ code: "CI_NOT_GREEN" });
   });
 });

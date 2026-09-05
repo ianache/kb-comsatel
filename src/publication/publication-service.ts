@@ -113,6 +113,61 @@ export class PublicationService {
     });
     return resultFromMergeRequest(plan, mergeRequest, commit.id);
   }
+
+  async publishApproved(
+    request: PublicationRequest,
+  ): Promise<PublicationResult> {
+    if (request.mode !== "approved-publish") {
+      throw new PublicationError(
+        "PUBLICATION_INVALID_CORPUS",
+        "Stable publication requires approved-publish mode",
+      );
+    }
+    if (request.corpus.errors.length > 0) {
+      throw new PublicationError(
+        "PUBLICATION_INVALID_CORPUS",
+        "Cannot publish a corpus with validation errors",
+      );
+    }
+    if (
+      request.corpus.manifest.documents.some(
+        (document) => document.status !== "stable",
+      )
+    ) {
+      throw new PublicationError(
+        "PUBLICATION_INVALID_CORPUS",
+        "Stable publication requires only stable documents",
+      );
+    }
+
+    const proposal = await this.createProposal({
+      ...request,
+      mode: "proposal",
+    });
+    const gate = await this.gitlab.getMergeRequestGate({
+      projectId: request.projectId,
+      iid: proposal.mergeRequestIid,
+    });
+    if (!gate.approved) {
+      throw new PublicationError(
+        "APPROVAL_REQUIRED",
+        "Merge Request approval is required",
+      );
+    }
+    if (gate.ci !== "success") {
+      throw new PublicationError(
+        "CI_NOT_GREEN",
+        "Merge Request CI is not green",
+      );
+    }
+    await this.indexApprovedProjection?.(request);
+    return {
+      ...proposal,
+      mode: "approved-publish",
+      outcome: "stable-publish-authorized",
+      ciState: gate.ci,
+    };
+  }
 }
 
 function resultFromMergeRequest(
