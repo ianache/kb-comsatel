@@ -1,12 +1,23 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { parseOkfMarkdown } from "./frontmatter-parser.js";
+import type { GitLabSourcePort } from "../ingestion/source-port.js";
 
 export interface RawOkfFile {
   relativePath: string;
   source: string;
   frontmatter: unknown;
   content: string;
+  sourceUri?: string;
+  sourceRevision?: string;
+}
+
+export interface GitLabOkfSource {
+  kind: "gitlab";
+  source: GitLabSourcePort;
+  projectId: string;
+  ref: string;
+  root?: string;
 }
 
 export async function readOkfFiles(inputDir: string): Promise<RawOkfFile[]> {
@@ -36,6 +47,43 @@ export async function readOkfFiles(inputDir: string): Promise<RawOkfFile[]> {
     const relativePath = relative(root, path).replaceAll("\\", "/");
     const parsed = parseOkfMarkdown(source, relativePath);
     result.push({ ...parsed, relativePath, source });
+  }
+  return result;
+}
+
+export async function readGitLabOkfFiles(
+  input: GitLabOkfSource,
+): Promise<RawOkfFile[]> {
+  const revision = await input.source.resolveRevision({
+    projectId: input.projectId,
+    ref: input.ref,
+  });
+  const entries = await input.source.listTree({
+    projectId: input.projectId,
+    ref: input.ref,
+    root: input.root,
+  });
+  const files = entries
+    .filter(
+      (entry) =>
+        entry.type === "blob" && entry.path.toLowerCase().endsWith(".md"),
+    )
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const result: RawOkfFile[] = [];
+  for (const entry of files) {
+    const file = await input.source.readFile({
+      projectId: input.projectId,
+      ref: input.ref,
+      path: entry.path,
+    });
+    const parsed = parseOkfMarkdown(file.content, entry.path);
+    result.push({
+      ...parsed,
+      relativePath: entry.path,
+      source: file.content,
+      sourceUri: file.sourceUri,
+      sourceRevision: revision,
+    });
   }
   return result;
 }
