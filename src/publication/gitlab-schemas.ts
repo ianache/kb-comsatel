@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const gitlabBranchSchema = z.object({
   name: z.string().min(1),
-  commit: z.object({ id: z.string().min(1) }).strict(),
+  commit: z.object({ id: z.string().min(1) }).passthrough(),
 });
 
 export const gitlabCommitSchema = z.object({

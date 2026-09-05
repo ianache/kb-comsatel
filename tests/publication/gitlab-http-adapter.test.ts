@@ -17,7 +17,16 @@ describe("GitLabHttpAdapter", () => {
       fetcher: async (url, init) => {
         requests.push({ url: String(url), init });
         if (String(url).includes("/branches/main"))
-          return response({ name: "main", commit: { id: "base-1" } });
+          return response({
+            name: "main",
+            protected: true,
+            commit: {
+              id: "base-1",
+              short_id: "base-1",
+              title: "main",
+              web_url: "https://gitlab.example.test/commit/base-1",
+            },
+          });
         if (String(url).includes("/merge_requests?")) return response([]);
         if (String(url).includes("/repository/branches"))
           return response({ name: "feature", commit: { id: "base-1" } });
