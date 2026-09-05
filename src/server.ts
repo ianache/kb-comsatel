@@ -8,6 +8,7 @@ import { createHttpMcpServer, type HttpMcpServer } from "./mcp/http-server.js";
 import { localPrincipal } from "./mcp/tools.js";
 import { createHealthServer, type HealthServer } from "./ops/health-server.js";
 import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
+import { createI3Runtime, type I3Runtime } from "./retrieval/i3-runtime.js";
 
 export interface Application {
   start(): Promise<void>;
@@ -20,6 +21,7 @@ function createRuntime(enableStdio: boolean): Application {
   let closeMcpServer: (() => Promise<void>) | undefined;
   let httpServer: HttpMcpServer | undefined;
   let closeDependencies: (() => Promise<void>) | undefined;
+  let i3Runtime: I3Runtime | undefined;
   let isReady = false;
   let started = false;
   let startPromise: Promise<void> | undefined;
@@ -34,6 +36,8 @@ function createRuntime(enableStdio: boolean): Application {
       closeMcpServer = undefined;
       await httpServer?.close();
       httpServer = undefined;
+      await i3Runtime?.close();
+      i3Runtime = undefined;
       await closeDependencies?.();
       closeDependencies = undefined;
       await healthServer?.close();
@@ -58,8 +62,11 @@ function createRuntime(enableStdio: boolean): Application {
 
           const dependencies = await createRuntimeDependencies(config);
           closeDependencies = dependencies.close;
+          i3Runtime = config.i3Enabled
+            ? await createI3Runtime(config, dependencies)
+            : undefined;
           const engine = new ContextEngine(
-            dependencies.repository,
+            i3Runtime?.repository ?? dependencies.repository,
             dependencies.auditSink,
           );
 

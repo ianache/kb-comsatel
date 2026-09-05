@@ -27,6 +27,8 @@ it("allows explicit deterministic local I3 mode", () => {
       KCP_I3_ENABLED: "true",
       KCP_I3_QDRANT_ENABLED: "true",
       KCP_I3_EMBEDDING_MODEL: "local-test",
+      KCP_MYSQL_ENABLED: "true",
+      KCP_MYSQL_URL: "mysql://user:password@127.0.0.1:3306/db",
     }),
   ).toMatchObject({ i3Enabled: true, i3QdrantEnabled: true });
 });

@@ -15,4 +15,14 @@ describe("I2 runtime composition", () => {
       await dependencies.close();
     }
   });
+
+  it("requires explicit MySQL and Qdrant when I3 is enabled", () => {
+    expect(() =>
+      loadConfig({
+        KCP_I3_ENABLED: "true",
+        KCP_I3_QDRANT_ENABLED: "true",
+        KCP_MYSQL_ENABLED: "false",
+      }),
+    ).toThrow("MySQL must be enabled");
+  });
 });

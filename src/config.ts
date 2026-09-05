@@ -118,6 +118,9 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   if (i3Enabled && !i3QdrantEnabled) {
     throw new Error("Qdrant must be enabled");
   }
+  if (i3Enabled && !mysqlEnabled) {
+    throw new Error("MySQL must be enabled");
+  }
   if (i3Enabled && !i3QdrantUrl) {
     throw new Error("Qdrant URL is required");
   }

@@ -12,11 +12,13 @@ import {
   type KeycloakPrincipalResolverOptions,
 } from "../security/keycloak-principal-resolver.js";
 import type { PrincipalResolver } from "../security/principal-resolver.js";
+import type { SqlExecutor } from "../catalog/sql-executor.js";
 
 export interface RuntimeDependencies {
   repository: KnowledgeRepository;
   principalResolver?: PrincipalResolver;
   auditSink: AuditSink;
+  executor?: SqlExecutor;
   close(): Promise<void>;
 }
 
@@ -46,6 +48,7 @@ export async function createRuntimeDependencies(
       repository: new MySqlKnowledgeRepository(executor),
       auditSink: new MySqlAuditSink(executor),
       principalResolver,
+      executor,
       close: () => executor.close(),
     };
   } catch (error) {
