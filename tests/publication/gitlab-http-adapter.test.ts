@@ -105,4 +105,17 @@ describe("GitLabHttpAdapter", () => {
       code,
     });
   });
+
+  it("includes the HTTP status without exposing response content", async () => {
+    const adapter = new GitLabHttpAdapter({
+      baseUrl: "https://gitlab.example.test",
+      token: "secret-token",
+      fetcher: async () => response({ error: "secret-token" }, 400),
+    });
+
+    await expect(adapter.getBranch("project-1", "main")).rejects.toMatchObject({
+      code: "GITLAB_UNAVAILABLE",
+      message: "GitLab request failed (HTTP 400)",
+    });
+  });
 });

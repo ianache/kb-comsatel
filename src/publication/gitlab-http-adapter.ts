@@ -266,9 +266,14 @@ function httpError(status: number): PublicationError {
     );
   if (status === 403)
     return new PublicationError("GITLAB_FORBIDDEN", "GitLab access forbidden");
-  return unavailable();
+  return unavailable(status);
 }
 
-function unavailable(): PublicationError {
-  return new PublicationError("GITLAB_UNAVAILABLE", "GitLab is unavailable");
+function unavailable(status?: number): PublicationError {
+  return new PublicationError(
+    "GITLAB_UNAVAILABLE",
+    status === undefined
+      ? "GitLab is unavailable"
+      : `GitLab request failed (HTTP ${status})`,
+  );
 }
