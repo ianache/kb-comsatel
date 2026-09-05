@@ -35,7 +35,7 @@ describe("FakeGoogleDriveSource", () => {
         metadata: (await source.listFiles({ folderIds: ["folder-1"] }))[0]!,
       }),
     ).resolves.toMatchObject({
-      sourceRevision: "7",
+      sourceRevision: /^7:/u,
       sha256: expect.any(String),
     });
   });

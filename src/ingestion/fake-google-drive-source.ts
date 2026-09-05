@@ -55,7 +55,7 @@ export class FakeGoogleDriveSource implements GoogleDriveSourcePort {
       sourceUri:
         input.metadata.webUrl ??
         `https://drive.google.com/file/d/${file.fileId}/view`,
-      sourceRevision: file.version ?? "unknown",
+      sourceRevision: `${file.version ?? "unknown"}:${sha256(content)}`,
     };
   }
 }

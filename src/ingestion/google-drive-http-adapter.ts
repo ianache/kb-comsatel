@@ -82,14 +82,15 @@ export class GoogleDriveHttpAdapter implements GoogleDriveSourcePort {
       `${this.baseUrl}/files/${encodeURIComponent(input.fileId)}?alt=media`,
     );
     const content = new Uint8Array(await response.arrayBuffer());
+    const sha256 = createHash("sha256").update(content).digest("hex");
     return {
       metadata: input.metadata,
       content,
-      sha256: createHash("sha256").update(content).digest("hex"),
+      sha256,
       sourceUri:
         input.metadata.webUrl ??
         `https://drive.google.com/file/d/${encodeURIComponent(input.fileId)}/view`,
-      sourceRevision: revisionOf(input.metadata),
+      sourceRevision: `${revisionOf(input.metadata)}:${sha256}`,
     };
   }
 
