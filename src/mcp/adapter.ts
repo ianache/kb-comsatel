@@ -1,15 +1,19 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { AccessPrincipal } from "../domain/schemas.js";
 import type { ContextEngine } from "../engine/context-engine.js";
 import { registerKnowledgeResources } from "./resources.js";
 import { registerKnowledgeTools } from "./tools.js";
 
-export function createMcpServer(engine: ContextEngine): McpServer {
+export function createMcpServer(
+  engine: ContextEngine,
+  principal?: AccessPrincipal,
+): McpServer {
   const server = new McpServer({
     name: "knowledge-context-mcp",
     version: "0.1.0",
   });
 
-  for (const tool of registerKnowledgeTools(engine)) {
+  for (const tool of registerKnowledgeTools(engine, principal)) {
     server.registerTool(
       tool.name,
       {
@@ -21,7 +25,7 @@ export function createMcpServer(engine: ContextEngine): McpServer {
     );
   }
 
-  for (const resource of registerKnowledgeResources(engine)) {
+  for (const resource of registerKnowledgeResources(engine, principal)) {
     server.registerResource(
       resource.name,
       resource.template,

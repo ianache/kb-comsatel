@@ -63,7 +63,10 @@ const readOnlyAnnotations = {
   openWorldHint: false,
 } as const;
 
-export function registerKnowledgeTools(engine: ContextEngine): {
+export function registerKnowledgeTools(
+  engine: ContextEngine,
+  principal: AccessPrincipal = localPrincipal,
+): {
   name: string;
   description: string;
   inputSchema: z.ZodTypeAny;
@@ -82,7 +85,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           async () =>
             engine.searchKnowledge(
               searchKnowledgeInputSchema.parse(input),
-              localPrincipal,
+              principal,
             ),
           searchKnowledgeResultSchema,
         ),
@@ -97,7 +100,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           "get_knowledge_excerpt",
           async () => {
             const { knowledgeId } = knowledgeIdInputSchema.parse(input);
-            return engine.getKnowledgeExcerpt(knowledgeId, localPrincipal);
+            return engine.getKnowledgeExcerpt(knowledgeId, principal);
           },
           knowledgeExcerptSchema.nullable(),
         ),
@@ -112,7 +115,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           "get_artifact_lineage",
           async () => {
             const { knowledgeId } = knowledgeIdInputSchema.parse(input);
-            return engine.getArtifactLineage(knowledgeId, localPrincipal);
+            return engine.getArtifactLineage(knowledgeId, principal);
           },
           artifactLineageSchema.nullable(),
         ),
@@ -128,7 +131,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           async () =>
             engine.buildContextPack(
               buildContextPackInputSchema.parse(input),
-              localPrincipal,
+              principal,
             ),
           contextPackSchema,
         ),
@@ -144,7 +147,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           async () =>
             engine.getTaskContext(
               buildContextPackInputSchema.parse(input),
-              localPrincipal,
+              principal,
             ),
           contextPackSchema,
         ),
@@ -159,7 +162,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
           "get_provenance",
           async () => {
             const { knowledgeId } = knowledgeIdInputSchema.parse(input);
-            return engine.getProvenance(knowledgeId, localPrincipal);
+            return engine.getProvenance(knowledgeId, principal);
           },
           provenanceSchema.nullable(),
         ),
@@ -177,7 +180,7 @@ export function registerKnowledgeTools(engine: ContextEngine): {
             return {
               concepts: await engine.listStaleConcepts(
                 filters ?? {},
-                localPrincipal,
+                principal,
               ),
             };
           },
