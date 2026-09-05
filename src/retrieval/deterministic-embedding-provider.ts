@@ -8,10 +8,7 @@ export class DeterministicEmbeddingProvider implements EmbeddingProvider {
   readonly model: string;
   readonly dimension: number;
 
-  constructor(
-    model = "local-test",
-    dimension = 3,
-  ) {
+  constructor(model = "local-test", dimension = 3) {
     this.model = model;
     this.dimension = dimension;
   }
