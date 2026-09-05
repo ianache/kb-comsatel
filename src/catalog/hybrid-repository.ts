@@ -59,6 +59,7 @@ export class HybridKnowledgeRepository implements KnowledgeRepository {
       const hydrated = await this.chunks.readSearchItems(
         vectors.map((item) => item.id),
         principal,
+        input.filters,
       );
       vectorCandidates = fuseSearchResults(
         [],

@@ -214,10 +214,12 @@ export class MySqlKnowledgeRepository
   async readSearchItems(
     chunkIds: readonly string[],
     principal: AccessPrincipal,
+    filters?: KnowledgeFilters,
   ): Promise<HydratedChunk[]> {
     if (chunkIds.length === 0) return [];
     try {
       const acl = aclPredicate(principal);
+      const filter = filtersPredicate({ staleAllowed: false, ...filters });
       const rows = await this.executor.query<KnowledgeRow>(
         `SELECT ${columns}, c.chunk_id, c.chunk_text
          FROM knowledge_chunks c
@@ -228,8 +230,9 @@ export class MySqlKnowledgeRepository
            ON e.knowledge_id = r.knowledge_id AND e.source_revision = r.source_revision
          WHERE c.chunk_id IN (${placeholders(chunkIds)})
            AND (r.stale_after IS NULL OR r.stale_after > UTC_TIMESTAMP(3))
+           AND ${filter.sql}
            AND ${acl.sql}`,
-        [...chunkIds, ...acl.params],
+        [...chunkIds, ...filter.params, ...acl.params],
       );
       return rows.map((row) => ({
         chunkId: String(row.chunk_id),

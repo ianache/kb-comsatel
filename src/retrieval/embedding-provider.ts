@@ -5,5 +5,7 @@ export interface EmbeddingBatch {
 }
 
 export interface EmbeddingProvider {
+  readonly model?: string;
+  readonly dimension?: number;
   embed(texts: readonly string[]): Promise<EmbeddingBatch>;
 }

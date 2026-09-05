@@ -89,7 +89,7 @@ export class QdrantVectorStore implements VectorStore {
         query: request.vector,
         limit,
         with_payload: true,
-        filter: buildVectorFilter(request.principal),
+        filter: buildVectorFilter(request.principal, request.filters),
       }),
     });
     const body = (await response.json()) as {

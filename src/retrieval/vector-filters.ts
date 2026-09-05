@@ -1,10 +1,13 @@
-import type { AccessPrincipal } from "../domain/schemas.js";
+import type { AccessPrincipal, KnowledgeFilters } from "../domain/schemas.js";
 
 export interface VectorFilter {
   must: Array<{ key: string; match: { any: string[] } }>;
 }
 
-export function buildVectorFilter(principal: AccessPrincipal): VectorFilter {
+export function buildVectorFilter(
+  principal: AccessPrincipal,
+  filters: KnowledgeFilters = {},
+): VectorFilter {
   const must: VectorFilter["must"] = [
     {
       key: "status",
@@ -23,5 +26,13 @@ export function buildVectorFilter(principal: AccessPrincipal): VectorFilter {
       match: { any: principal.classifications },
     });
   }
+  const addFilter = (key: string, values: string[] | undefined) => {
+    if (values && values.length > 0) must.push({ key, match: { any: values } });
+  };
+  addFilter("product", filters.product);
+  addFilter("domain", filters.domain);
+  addFilter("artifact_type", filters.artifactType);
+  addFilter("status", filters.status);
+  addFilter("source_system", filters.sourceSystem);
   return { must };
 }

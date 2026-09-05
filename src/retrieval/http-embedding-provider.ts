@@ -17,9 +17,13 @@ export interface HttpEmbeddingProviderOptions {
 
 export class HttpEmbeddingProvider implements EmbeddingProvider {
   private readonly fetcher: Fetcher;
+  readonly model: string;
+  readonly dimension: number;
 
   constructor(private readonly options: HttpEmbeddingProviderOptions) {
     this.fetcher = options.fetcher ?? globalThis.fetch;
+    this.model = options.model;
+    this.dimension = options.dimension;
   }
 
   async embed(texts: readonly string[]): Promise<EmbeddingBatch> {

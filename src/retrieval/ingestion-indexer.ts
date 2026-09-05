@@ -53,8 +53,8 @@ export class IngestionIndexer {
       const runId = await this.catalog.beginIndexRun({
         knowledgeId: document.knowledgeId,
         sourceRevision: document.sourceRevision,
-        model: "pending",
-        dimension: 0,
+        model: this.embeddings.model ?? "pending",
+        dimension: this.embeddings.dimension ?? 0,
       });
       try {
         await this.catalog.upsertDocument(document, document.contentHash);

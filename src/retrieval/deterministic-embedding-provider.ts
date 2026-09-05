@@ -5,10 +5,16 @@ import type {
 } from "./embedding-provider.js";
 
 export class DeterministicEmbeddingProvider implements EmbeddingProvider {
+  readonly model: string;
+  readonly dimension: number;
+
   constructor(
-    private readonly model = "local-test",
-    private readonly dimension = 3,
-  ) {}
+    model = "local-test",
+    dimension = 3,
+  ) {
+    this.model = model;
+    this.dimension = dimension;
+  }
 
   async embed(texts: readonly string[]): Promise<EmbeddingBatch> {
     return {

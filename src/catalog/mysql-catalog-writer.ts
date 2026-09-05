@@ -124,6 +124,83 @@ export class MySqlCatalogWriter implements CatalogWriter {
           document.content.slice(0, 2000),
         ],
       );
+      await this.executor.execute(
+        "DELETE FROM knowledge_acl WHERE knowledge_id = ?",
+        [document.knowledgeId],
+      );
+      const aclRows = [
+        ...document.acl.principalIds.map((value) => [
+          value,
+          null,
+          null,
+          null,
+          null,
+          null,
+        ]),
+        ...document.acl.roles.map((value) => [
+          null,
+          value,
+          null,
+          null,
+          null,
+          null,
+        ]),
+        ...document.acl.groups.map((value) => [
+          null,
+          null,
+          value,
+          null,
+          null,
+          null,
+        ]),
+        ...document.acl.products.map((value) => [
+          null,
+          null,
+          null,
+          value,
+          null,
+          null,
+        ]),
+        ...document.acl.domains.map((value) => [
+          null,
+          null,
+          null,
+          null,
+          value,
+          null,
+        ]),
+        ...document.acl.classifications.map((value) => [
+          null,
+          null,
+          null,
+          null,
+          null,
+          value,
+        ]),
+      ];
+      for (const [
+        principalId,
+        roleName,
+        groupName,
+        product,
+        domain,
+        classification,
+      ] of aclRows) {
+        await this.executor.execute(
+          `INSERT INTO knowledge_acl
+            (knowledge_id, principal_id, role_name, group_name, product, domain, classification)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            document.knowledgeId,
+            principalId,
+            roleName,
+            groupName,
+            product,
+            domain,
+            classification,
+          ],
+        );
+      }
     } catch {
       throw new KcpError("INTERNAL_ERROR", "Knowledge catalog unavailable");
     }

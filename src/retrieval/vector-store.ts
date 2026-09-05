@@ -1,4 +1,4 @@
-import type { AccessPrincipal } from "../domain/schemas.js";
+import type { AccessPrincipal, KnowledgeFilters } from "../domain/schemas.js";
 
 export type VectorDistance = "Cosine" | "Euclid" | "Dot";
 
@@ -38,11 +38,10 @@ export interface VectorSearchRequest {
   vector: number[];
   principal: AccessPrincipal;
   limit: number;
-  filters?: {
-    product?: string[];
-    domain?: string[];
-    status?: string[];
-  };
+  filters?: Pick<
+    KnowledgeFilters,
+    "product" | "domain" | "status" | "artifactType" | "sourceSystem"
+  >;
 }
 
 export interface VectorStore {
