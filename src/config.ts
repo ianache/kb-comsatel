@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SourceConfigurationError } from "./ingestion/source-errors.js";
 
 const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 const portSchema = z.number().int().min(1).max(65535);
@@ -50,6 +51,13 @@ const configSchema = z.object({
   gitlabBaseBranch: z.string().min(1),
   gitlabBranchPrefix: z.string().min(1),
   gitlabTimeoutMs: positiveIntegerSchema,
+  gitlabSourceEnabled: z.boolean(),
+  gitlabSourceBaseUrl: z.string().url(),
+  gitlabSourceProjectId: z.string().min(1).optional(),
+  gitlabSourceRef: z.string().min(1),
+  gitlabSourceRoot: z.string(),
+  gitlabSourceToken: z.string().min(1).optional(),
+  gitlabSourceTimeoutMs: positiveIntegerSchema,
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -117,6 +125,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     false,
   );
   const gitlabBaseUrl = env.KCP_GITLAB_BASE_URL ?? "https://gitlab.example.com";
+  const gitlabSourceEnabled = parseBoolean(
+    env.KCP_GITLAB_SOURCE_ENABLED,
+    false,
+  );
+  const gitlabSourceBaseUrl = env.KCP_GITLAB_SOURCE_BASE_URL ?? gitlabBaseUrl;
 
   if (mysqlEnabled && !env.KCP_MYSQL_URL) {
     throw new Error("MySQL URL is required");
@@ -144,6 +157,12 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   if (gitlabPublicationEnabled && !env.KCP_GITLAB_TOKEN) {
     throw new Error("GitLab token is required");
+  }
+  if (gitlabSourceEnabled && !env.KCP_GITLAB_SOURCE_PROJECT_ID) {
+    throw new SourceConfigurationError("GitLab source project ID is required");
+  }
+  if (gitlabSourceEnabled && !env.KCP_GITLAB_SOURCE_TOKEN) {
+    throw new SourceConfigurationError("GitLab source token is required");
   }
 
   return configSchema.parse({
@@ -240,6 +259,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       env.KCP_GITLAB_TIMEOUT_MS,
       10_000,
       "KCP_GITLAB_TIMEOUT_MS",
+    ),
+    gitlabSourceEnabled,
+    gitlabSourceBaseUrl,
+    gitlabSourceProjectId: env.KCP_GITLAB_SOURCE_PROJECT_ID,
+    gitlabSourceRef: env.KCP_GITLAB_SOURCE_REF ?? "main",
+    gitlabSourceRoot: env.KCP_GITLAB_SOURCE_ROOT ?? "",
+    gitlabSourceToken: env.KCP_GITLAB_SOURCE_TOKEN,
+    gitlabSourceTimeoutMs: parsePositiveInteger(
+      env.KCP_GITLAB_SOURCE_TIMEOUT_MS,
+      10_000,
+      "KCP_GITLAB_SOURCE_TIMEOUT_MS",
     ),
   });
 }
