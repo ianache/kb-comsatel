@@ -11,6 +11,7 @@ Este directorio contiene la validación manual del proyecto. Las pruebas no reem
 5. [05 — Seguridad y operación](./05-security-operations.md)
 6. [06 - I3 ingesta e indexacion](./06-i3-ingestion-indexing.md)
 7. [Manual I3 - busqueda hibrida](./i3-hybrid-retrieval.md)
+8. [07 - I4-A Knowledge Compiler OKF](./07-i4a-okf-compiler.md)
 
 ## Criterio de aprobación
 
