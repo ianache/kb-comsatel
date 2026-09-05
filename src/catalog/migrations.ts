@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS knowledge_artifacts (
   product VARCHAR(100) NOT NULL,
   domain VARCHAR(100) NOT NULL,
   classification VARCHAR(100) NOT NULL,
-  current_status ENUM('stable','draft','deprecated','superseded','archived') NOT NULL,
+  current_status ENUM('stable','draft','stale','deprecated','superseded','archived') NOT NULL,
   source_system ENUM('gitlab','google-drive','okf','schema-catalog') NOT NULL,
   successor_knowledge_id VARCHAR(255) NULL,
   created_at DATETIME(3) NOT NULL,
@@ -147,6 +147,12 @@ ALTER TABLE knowledge_chunks
   ADD FULLTEXT INDEX idx_chunk_text (chunk_text);
 
 CREATE INDEX idx_index_run_status ON knowledge_index_runs (status, started_at);`,
+  },
+  {
+    filename: "005_i4a_okf_governance.sql",
+    sql: `
+ALTER TABLE knowledge_artifacts
+  MODIFY COLUMN current_status ENUM('stable','draft','stale','deprecated','superseded','archived') NOT NULL;`,
   },
 ] as const;
 

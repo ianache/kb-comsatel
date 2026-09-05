@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import {
   buildContextPackInputSchema,
   citationSchema,
+  knowledgeStatusSchema,
   searchKnowledgeInputSchema,
 } from "../../src/domain/schemas.js";
 
@@ -44,4 +45,8 @@ it("requires filters for a context pack", () => {
       tokenBudget: 500,
     }).success,
   ).toBe(false);
+});
+
+it("accepts stale as a governed knowledge status", () => {
+  expect(knowledgeStatusSchema.parse("stale")).toBe("stale");
 });

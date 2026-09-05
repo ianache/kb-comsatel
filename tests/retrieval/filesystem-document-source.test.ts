@@ -24,6 +24,7 @@ it("loads manifest metadata and content beneath the configured root", async () =
         {
           knowledgeId: "doc-1",
           title: "Document",
+          artifactType: "rule",
           sourceSystem: "gitlab",
           sourceUri: "https://example.test/doc-1",
           sourceRevision: "rev-1",
@@ -31,6 +32,7 @@ it("loads manifest metadata and content beneath the configured root", async () =
           domain: "units",
           classification: "internal",
           status: "stable",
+          successorKnowledgeId: "replacement-rule",
           path: "doc.md",
           locator: { sectionPath: "intro" },
           acl: { groups: ["reviewers"], classifications: ["internal"] },

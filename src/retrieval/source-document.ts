@@ -18,6 +18,7 @@ export interface SourceAcl {
 export interface SourceDocument {
   knowledgeId: string;
   title: string;
+  artifactType?: string;
   sourceSystem: SourceSystem;
   sourceUri: string;
   sourceRevision: string;
@@ -25,6 +26,7 @@ export interface SourceDocument {
   domain: string;
   classification: string;
   status: KnowledgeStatus;
+  successorKnowledgeId?: string;
   content: string;
   locator: SourceLocator;
   verifiedAt?: string;

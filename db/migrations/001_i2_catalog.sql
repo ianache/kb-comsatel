@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS knowledge_artifacts (
   product VARCHAR(100) NOT NULL,
   domain VARCHAR(100) NOT NULL,
   classification VARCHAR(100) NOT NULL,
-  current_status ENUM('stable','draft','deprecated','superseded','archived') NOT NULL,
+  current_status ENUM('stable','draft','stale','deprecated','superseded','archived') NOT NULL,
   source_system ENUM('gitlab','google-drive','okf','schema-catalog') NOT NULL,
   successor_knowledge_id VARCHAR(255) NULL,
   created_at DATETIME(3) NOT NULL,

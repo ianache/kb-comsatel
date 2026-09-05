@@ -76,20 +76,22 @@ export class MySqlCatalogWriter implements CatalogWriter {
       await this.executor.execute(
         `INSERT INTO knowledge_artifacts
           (knowledge_id, title, artifact_type, product, domain, classification,
-           current_status, source_system, created_at, updated_at)
-         VALUES (?, ?, 'document', ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
+           current_status, source_system, successor_knowledge_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
-           title = VALUES(title), product = VALUES(product), domain = VALUES(domain),
+           title = VALUES(title), artifact_type = VALUES(artifact_type), product = VALUES(product), domain = VALUES(domain),
            classification = VALUES(classification), current_status = VALUES(current_status),
-           source_system = VALUES(source_system), updated_at = UTC_TIMESTAMP(3)`,
+           source_system = VALUES(source_system), successor_knowledge_id = VALUES(successor_knowledge_id), updated_at = UTC_TIMESTAMP(3)`,
         [
           document.knowledgeId,
           document.title,
+          document.artifactType ?? "document",
           document.product,
           document.domain,
           document.classification,
           document.status,
           document.sourceSystem,
+          document.successorKnowledgeId ?? null,
         ],
       );
       await this.executor.execute(

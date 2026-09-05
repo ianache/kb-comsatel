@@ -6,6 +6,7 @@ import type { SourceDocument } from "../../src/retrieval/source-document.js";
 const document: SourceDocument = {
   knowledgeId: "doc-1",
   title: "Manual document",
+  artifactType: "rule",
   sourceSystem: "gitlab",
   sourceUri: "https://example.test/doc-1",
   sourceRevision: "rev-1",
@@ -13,6 +14,7 @@ const document: SourceDocument = {
   domain: "units",
   classification: "internal",
   status: "stable",
+  successorKnowledgeId: "replacement-rule",
   content: "secret prompt text that stays parameterized",
   locator: { sectionPath: "intro" },
   acl: {

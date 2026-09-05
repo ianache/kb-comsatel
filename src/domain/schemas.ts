@@ -8,6 +8,7 @@ const stringListSchema = z.array(identifierSchema);
 export const knowledgeStatusSchema = z.enum([
   "stable",
   "draft",
+  "stale",
   "deprecated",
   "superseded",
   "archived",

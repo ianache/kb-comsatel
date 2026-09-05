@@ -8,10 +8,11 @@ import {
 import type { DocumentSource } from "./document-source.js";
 import type { SourceDocument } from "./source-document.js";
 
-const manifestEntrySchema = z
+export const manifestDocumentSchema = z
   .object({
     knowledgeId: z.string().trim().min(1),
     title: z.string().trim().min(1),
+    artifactType: z.string().trim().min(1).default("document"),
     sourceSystem: sourceSystemSchema,
     sourceUri: z.string().url(),
     sourceRevision: z.string().trim().min(1),
@@ -19,6 +20,7 @@ const manifestEntrySchema = z
     domain: z.string().trim().min(1),
     classification: z.string().trim().min(1),
     status: knowledgeStatusSchema,
+    successorKnowledgeId: z.string().trim().min(1).optional(),
     path: z.string().min(1),
     locator: z
       .object({
@@ -52,7 +54,7 @@ const manifestEntrySchema = z
   .strict();
 
 const manifestSchema = z
-  .object({ documents: z.array(manifestEntrySchema) })
+  .object({ documents: z.array(manifestDocumentSchema) })
   .strict();
 
 export interface FilesystemDocumentSourceOptions {
