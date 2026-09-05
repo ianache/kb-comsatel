@@ -47,10 +47,23 @@ The local process also starts health endpoints on the configured host and port:
 - `GET /health` returns process liveness.
 - `GET /ready` returns readiness after initialization.
 
-I1 is intentionally offline and local. It does not include MySQL, Qdrant, Keycloak, Vault, Streamable HTTP, or hybrid semantic retrieval support.
+## I2 opt-in runtime
+
+I2 adds optional MySQL persistence, Keycloak/JWKS bearer authentication, aggregate audit persistence, and authenticated Streamable HTTP. The default configuration remains offline and in-memory.
+
+For local HTTP contract testing only:
+
+```bash
+KCP_HTTP_ENABLED=true KCP_HTTP_LOCAL_MODE=true npm run dev
+```
+
+For a MySQL-backed run, copy `.env.i2.example`, set `KCP_MYSQL_ENABLED=true` and `KCP_MYSQL_URL`, then start the local MySQL service with `docker compose -f docker-compose.i2.yml up -d`. Production HTTP mode requires `KCP_KEYCLOAK_ISSUER` and `KCP_KEYCLOAK_AUDIENCE`; local mode must not be enabled in production.
+
+The liveness endpoint is `GET /health`, readiness is `GET /ready`, and the MCP endpoint is `POST /mcp`. HTTP requests require `Authorization: Bearer <token>` unless local mode is explicitly enabled. Error responses never include tokens, SQL, prompts, or document content.
+
+I2 does not implement Qdrant, embeddings, hybrid semantic retrieval, Vault runtime calls, Kubernetes deployment, portal ingestion, source connectors, mutation tools, or web UI.
 
 See `docs/operations/i1-local-development.md` for setup and operating details.
-
 
 ```
 $env:NODE_USE_SYSTEM_CA='1'; rtk npm ci

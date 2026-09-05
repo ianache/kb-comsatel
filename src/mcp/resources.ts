@@ -2,6 +2,7 @@ import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import type { Variables } from "@modelcontextprotocol/sdk/shared/uriTemplate.js";
+import type { AccessPrincipal } from "../domain/schemas.js";
 import type { ContextEngine } from "../engine/context-engine.js";
 import { localPrincipal, toSafeError } from "./tools.js";
 
@@ -28,6 +29,7 @@ export interface KnowledgeResourceRegistration {
 
 export function registerKnowledgeResources(
   engine: ContextEngine,
+  principal: AccessPrincipal = localPrincipal,
 ): KnowledgeResourceRegistration[] {
   return [
     {
@@ -44,9 +46,9 @@ export function registerKnowledgeResources(
         safeResourceResult("artifact resource", uri, async () => {
           const knowledgeId = requiredVariable(variables, "knowledge_id");
           const [excerpt, lineage, provenance] = await Promise.all([
-            engine.getKnowledgeExcerpt(knowledgeId, localPrincipal),
-            engine.getArtifactLineage(knowledgeId, localPrincipal),
-            engine.getProvenance(knowledgeId, localPrincipal),
+            engine.getKnowledgeExcerpt(knowledgeId, principal),
+            engine.getArtifactLineage(knowledgeId, principal),
+            engine.getProvenance(knowledgeId, principal),
           ]);
           return excerpt === null && lineage === null && provenance === null
             ? notFound("Knowledge artifact not found")
@@ -72,7 +74,7 @@ export function registerKnowledgeResources(
           const artifact = await engine.getArtifact(
             knowledgeId,
             revision,
-            localPrincipal,
+            principal,
           );
           return artifact ?? notFound("Knowledge artifact revision not found");
         }),
@@ -90,7 +92,7 @@ export function registerKnowledgeResources(
       read: async (uri, variables) =>
         safeResourceResult("taxonomy resource", uri, async () => {
           const domain = requiredVariable(variables, "domain");
-          const taxonomy = await engine.getTaxonomy(domain, localPrincipal);
+          const taxonomy = await engine.getTaxonomy(domain, principal);
           return taxonomy ?? notFound("Knowledge taxonomy not found");
         }),
     },
