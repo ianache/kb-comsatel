@@ -34,3 +34,8 @@ build:
   stage: validate
   script:
     - npm run build
+
+smoke:
+  stage: validate
+  script:
+    - npm run smoke
