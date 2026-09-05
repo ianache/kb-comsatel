@@ -40,6 +40,15 @@ describe("OKF CLI", () => {
     ).resolves.toBe(2);
   });
 
+  it("accepts Google Drive as an explicit source", () => {
+    expect(
+      parseOkfArgs(["validate", "--source", "google-drive"]),
+    ).toMatchObject({
+      source: "google-drive",
+      sourceDir: "",
+    });
+  });
+
   it("returns a validation error without writing output", async () => {
     const parent = await mkdtemp(join(tmpdir(), "kcp-i4a-cli-"));
     directories.push(parent);
