@@ -31,4 +31,22 @@ describe("OKF publication CLI", () => {
     expect(output.join("\n")).toContain("knowledge/");
     expect(output.join("\n")).not.toContain("Verified unit identifiers");
   });
+
+  it("does not publish when GitLab is not explicitly enabled", async () => {
+    const errors: string[] = [];
+    const originalError = console.error;
+    console.error = (...values: unknown[]) => errors.push(values.join(" "));
+    try {
+      const exitCode = await runPublicationCommand({}, [
+        "publish",
+        "tests/fixtures/okf-valid",
+        "proposal",
+      ]);
+      expect(exitCode).toBe(2);
+    } finally {
+      console.error = originalError;
+    }
+    expect(errors.join("\n")).toContain("GitLab publication is disabled");
+    expect(errors.join("\n")).not.toContain("token");
+  });
 });

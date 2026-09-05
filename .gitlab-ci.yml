@@ -47,3 +47,10 @@ i3-integration:
     - when: never
   script:
     - node scripts/i3-integration-smoke.mjs
+
+i4b-publication-offline:
+  stage: validate
+  script:
+    - npm run okf:validate -- tests/fixtures/okf-valid stable
+    - npm run okf:publication-plan -- tests/fixtures/okf-valid
+    - npm test -- tests/publication tests/ingestion/okf-publication-cli.test.ts tests/security/publication-sensitive-output.test.ts

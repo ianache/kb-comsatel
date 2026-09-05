@@ -12,6 +12,7 @@ Este directorio contiene la validación manual del proyecto. Las pruebas no reem
 6. [06 - I3 ingesta e indexacion](./06-i3-ingestion-indexing.md)
 7. [Manual I3 - busqueda hibrida](./i3-hybrid-retrieval.md)
 8. [07 - I4-A Knowledge Compiler OKF](./07-i4a-okf-compiler.md)
+9. [08 - I4-B publicación OKF mediante GitLab](./08-i4b-gitlab-publication.md)
 
 ## Criterio de aprobación
 
