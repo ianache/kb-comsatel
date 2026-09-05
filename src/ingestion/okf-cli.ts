@@ -1,9 +1,10 @@
 import { compileOkfCorpus, type CompileOptions } from "../okf/compiler.js";
 import { writeProjection } from "../okf/projection-writer.js";
-import { runI3Indexing } from "./i3-cli.js";
+import { runI3Indexing, runI3IndexingSummary } from "./i3-cli.js";
 import { loadConfig } from "../config.js";
 import { GitLabHttpSourceAdapter } from "./gitlab-http-source-adapter.js";
 import { SourceConfigurationError } from "./source-errors.js";
+import { indexGitLabCorpus } from "./i5b-indexing.js";
 
 export interface OkfArgs {
   command: "validate" | "compile" | "index";
@@ -69,6 +70,28 @@ export async function runOkfCommand(
   try {
     const options = parseOkfArgs(args);
     const corpusSource = await resolveCorpusSource(environment, options);
+    if (options.command === "index" && options.source === "gitlab") {
+      const result = await indexGitLabCorpus(
+        {
+          source: corpusSource,
+          outputDir: options.outputDir,
+          mode: "stable",
+        },
+        {
+          compile: compileOkfCorpus,
+          write: async (corpus, outputDir) => {
+            await writeProjection(corpus, outputDir);
+          },
+          index: (outputDir) =>
+            runI3IndexingSummary({
+              ...environment,
+              KCP_I3_SOURCE_DIR: outputDir,
+            }),
+        },
+      );
+      console.log(JSON.stringify(result));
+      return result.status === "failed" ? 1 : 0;
+    }
     const corpus = await compileOkfCorpus(corpusSource, {
       mode: options.mode,
     });

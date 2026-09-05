@@ -1,6 +1,7 @@
 import { loadConfig } from "../config.js";
 import { createI3Runtime } from "../retrieval/i3-runtime.js";
 import { createRuntimeDependencies } from "../ops/runtime-dependencies.js";
+import type { IngestionSummary } from "../retrieval/ingestion-indexer.js";
 
 export async function runI3Indexing(
   environment: Record<string, string | undefined>,
@@ -16,16 +17,27 @@ export async function runI3Indexing(
     console.error("I3 indexing is disabled; set KCP_I3_ENABLED=true");
     return 2;
   }
+  const summary = await runI3IndexingSummary(configuredEnvironment);
+  console.log(JSON.stringify(summary));
+  return 0;
+}
+
+export async function runI3IndexingSummary(
+  environment: Record<string, string | undefined>,
+): Promise<IngestionSummary> {
+  const config = loadConfig(environment);
+  if (!config.i3Enabled) {
+    throw new Error("I3 indexing is disabled; set KCP_I3_ENABLED=true");
+  }
   const dependencies = await createRuntimeDependencies(config);
   let runtime: Awaited<ReturnType<typeof createI3Runtime>> | undefined;
   try {
     runtime = await createI3Runtime(config, dependencies);
-    console.log(JSON.stringify(await runtime.indexer.ingest()));
+    return await runtime.indexer.ingest();
   } finally {
     await runtime?.close();
     await dependencies.close();
   }
-  return 0;
 }
 
 export function resolveI3SourceDirectory(

@@ -34,6 +34,12 @@ describe("OKF CLI", () => {
     });
   });
 
+  it("rejects remote indexing when GitLab source is disabled", async () => {
+    await expect(
+      runOkfCommand({}, ["index", "--source", "gitlab"]),
+    ).resolves.toBe(2);
+  });
+
   it("returns a validation error without writing output", async () => {
     const parent = await mkdtemp(join(tmpdir(), "kcp-i4a-cli-"));
     directories.push(parent);
