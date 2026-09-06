@@ -1,0 +1,188 @@
+import { Injectable } from "@angular/core";
+
+export interface IngestionBatch {
+  id: string;
+  connector_id: string;
+  source_uri: string;
+  artifact_type: string;
+  processed: number;
+  total: number;
+  status: string;
+}
+
+export interface Connector {
+  id: string;
+  kind: string;
+  name: string;
+  base_uri: string;
+  vault_secret_ref: string;
+  active: boolean;
+  healthy: boolean;
+}
+
+export interface CreateConnectorRequest {
+  kind: string;
+  name: string;
+  base_uri: string;
+  vault_secret_ref: string;
+}
+
+export interface CreateConnectorResult {
+  ok: boolean;
+  connector?: Connector;
+  error?: string;
+}
+
+export interface GitLabCatalogEntry {
+  id: string;
+  nombre: string;
+  grupo: string;
+  rama_default: string;
+  ramas_disponibles: string[];
+}
+
+export interface GitLabRepoLink {
+  id: string;
+  connector_id: string;
+  repo: string;
+  repo_id: string;
+  rama: string;
+  ruta: string;
+  auto_sync: boolean;
+  estado: string;
+}
+
+export interface DriveCatalogEntry {
+  id: string;
+  path: string;
+  tipo: string;
+}
+
+export interface DriveFolderLink {
+  id: string;
+  connector_id: string;
+  path: string;
+  tipo: string;
+}
+
+export interface SchemaTable {
+  id: string;
+  connector_id: string;
+  tabla: string;
+  columnas: number;
+  motor: string;
+}
+
+export interface UpdateConnectorPayload {
+  name?: string;
+  base_uri?: string;
+  vault_secret_ref?: string;
+  active?: boolean;
+}
+
+const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?? "http://localhost:3000";
+
+// The MicroUI never talks to Keycloak or to ingestion-api directly — every call
+// goes through the BFF, which holds the session and injects the bearer token.
+@Injectable({ providedIn: "root" })
+export class IngestaApiService {
+  async listBatches(): Promise<IngestionBatch[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/batches`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as IngestionBatch[];
+  }
+
+  async listConnectors(): Promise<Connector[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as Connector[];
+  }
+
+  async createConnector(payload: CreateConnectorRequest): Promise<CreateConnectorResult> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail =
+        body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+          ? body.detail
+          : `No se pudo crear el conector (HTTP ${response.status}).`;
+      return { ok: false, error: detail };
+    }
+    return { ok: true, connector: body as Connector };
+  }
+
+  async listGitlabCatalog(): Promise<GitLabCatalogEntry[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gitlab-catalog`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as GitLabCatalogEntry[];
+  }
+
+  async listConnectorRepos(connectorId: string): Promise<GitLabRepoLink[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/repos`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as GitLabRepoLink[];
+  }
+
+  async linkGitlabRepos(connectorId: string, repoIds: string[], branchById: Record<string, string>): Promise<GitLabRepoLink[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/repos`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_ids: repoIds, branch_by_id: branchById }),
+    });
+    if (!response.ok) return [];
+    return (await response.json()) as GitLabRepoLink[];
+  }
+
+  async listGdriveCatalog(): Promise<DriveCatalogEntry[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gdrive-catalog`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as DriveCatalogEntry[];
+  }
+
+  async listConnectorFolders(connectorId: string): Promise<DriveFolderLink[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/folders`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as DriveFolderLink[];
+  }
+
+  async linkGdriveFolders(connectorId: string, folderIds: string[]): Promise<DriveFolderLink[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/folders`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folder_ids: folderIds }),
+    });
+    if (!response.ok) return [];
+    return (await response.json()) as DriveFolderLink[];
+  }
+
+  async listConnectorSchemas(connectorId: string): Promise<SchemaTable[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/schemas`, { credentials: "include" });
+    if (!response.ok) return [];
+    return (await response.json()) as SchemaTable[];
+  }
+
+  async updateConnector(connectorId: string, payload: UpdateConnectorPayload): Promise<CreateConnectorResult> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      const detail =
+        body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+          ? body.detail
+          : `No se pudo actualizar el conector (HTTP ${response.status}).`;
+      return { ok: false, error: detail };
+    }
+    return { ok: true, connector: body as Connector };
+  }
+}
