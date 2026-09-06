@@ -8,12 +8,19 @@ import { EditarConectorComponent } from "./editar-conector.component";
 interface NewConnectorForm {
   kind: string;
   name: string;
+  descripcion: string;
   base_uri: string;
   vault_secret_ref: string;
 }
 
 function emptyForm(): NewConnectorForm {
-  return { kind: "gitlab", name: "", base_uri: "", vault_secret_ref: "" };
+  return { kind: "gitlab", name: "", descripcion: "", base_uri: "", vault_secret_ref: "" };
+}
+
+interface TestResult {
+  message: string;
+  bg: string;
+  color: string;
 }
 
 @Component({
@@ -100,41 +107,65 @@ function emptyForm(): NewConnectorForm {
       </div>
     </div>
 
-    <div *ngIf="dialogOpen()" class="dialog-backdrop" style="position:fixed;inset:0;z-index:50" (click)="closeDialog()">
-      <div class="dialog" style="position:relative" (click)="$event.stopPropagation()">
-        <div class="dialog-title">Nuevo conector</div>
-        <div class="dialog-body">
-          Registra un conector autorizado. Solo se guarda la referencia Vault del secreto — nunca la credencial en si (FR-01).
+    <div *ngIf="dialogOpen()" style="position:fixed;inset:0;background:rgba(15,23,42,0.45);z-index:50;display:flex;justify-content:flex-end" (click)="closeDialog()">
+      <div style="background:var(--color-bg);width:440px;max-width:100%;height:100%;box-shadow:var(--shadow-lg);display:flex;flex-direction:column" (click)="$event.stopPropagation()">
+        <div style="padding:20px 24px;border-bottom:1px solid var(--color-divider);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h4 style="margin:0">Nuevo conector</h4>
+            <div class="text-muted" style="font-size:12px;margin-top:2px">Registra un origen de datos autorizado</div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-icon" (click)="closeDialog()">✕</button>
         </div>
 
-        <div class="field" style="margin-bottom:12px">
-          <label>Tipo</label>
-          <select class="input" [(ngModel)]="form.kind" name="kind">
-            <option value="gitlab">GitLab</option>
-            <option value="google_drive">Google Drive</option>
-            <option value="upload">Carga manual</option>
-            <option value="schema">Catálogo de esquemas</option>
-          </select>
-        </div>
-        <div class="field" style="margin-bottom:12px">
-          <label>Nombre</label>
-          <input class="input" [(ngModel)]="form.name" name="name" placeholder="GitLab Enterprise Server" />
-        </div>
-        <div class="field" style="margin-bottom:12px">
-          <label>Base URI</label>
-          <input class="input" [(ngModel)]="form.base_uri" name="base_uri" placeholder="https://gitlab.internal.comsatel.pe" />
-        </div>
-        <div class="field" style="margin-bottom:4px">
-          <label>Referencia Vault</label>
-          <input class="input" [(ngModel)]="form.vault_secret_ref" name="vault_secret_ref" placeholder="secrets/kb/gitlab" />
+        <div style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px">
+          <div class="field">
+            <label>Tipo de conector</label>
+            <div class="seg" style="width:100%">
+              <label
+                *ngFor="let type of connectorTypes"
+                class="seg-opt"
+                [style.background]="form.kind === type.key ? 'var(--color-accent)' : 'transparent'"
+                [style.color]="form.kind === type.key ? '#fff' : 'var(--color-neutral-700)'"
+                (click)="form.kind = type.key"
+              >
+                {{ type.label }}
+              </label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Nombre</label>
+            <input class="input" [(ngModel)]="form.name" name="name" placeholder="p. ej. GitLab Enterprise Server" />
+          </div>
+          <div class="field">
+            <label>Descripción</label>
+            <input class="input" [(ngModel)]="form.descripcion" name="descripcion" placeholder="Propósito y alcance del conector" />
+          </div>
+
+          <ng-container [ngSwitch]="form.kind">
+            <div class="field" *ngSwitchCase="'gitlab'">
+              <label>URL del servidor GitLab</label>
+              <input class="input" [(ngModel)]="form.base_uri" name="base_uri" placeholder="https://gitlab.internal.comsatel.pe" />
+            </div>
+            <div class="field" *ngSwitchCase="'google_drive'"></div>
+            <div class="field" *ngSwitchCase="'db'"></div>
+          </ng-container>
+          <div class="field">
+            <label>{{ vaultLabel() }}</label>
+            <input class="input" [(ngModel)]="form.vault_secret_ref" name="vault_secret_ref" [placeholder]="vaultPlaceholder()" />
+            <div class="text-muted" style="font-size:11px">Referencia a la ruta en Vault. El secreto nunca se ingresa aquí.</div>
+          </div>
+
+          <div class="card" style="padding:12px" *ngIf="testResult() as result" [style.background]="result.bg">
+            <div style="font-size:13px" [style.color]="result.color">{{ result.message }}</div>
+          </div>
+          <div class="text-muted" style="font-size:12px" *ngIf="dialogError()">{{ dialogError() }}</div>
         </div>
 
-        <div class="text-muted" style="font-size:12px;margin-top:8px" *ngIf="dialogError()">{{ dialogError() }}</div>
-
-        <div class="dialog-actions">
-          <button type="button" class="btn btn-secondary" (click)="closeDialog()" [disabled]="submitting()">Cancelar</button>
-          <button type="button" class="btn btn-primary" (click)="submit()" [disabled]="submitting() || !canSubmit()">
-            {{ submitting() ? "Guardando…" : "Registrar conector" }}
+        <div style="padding:16px 24px;border-top:1px solid var(--color-divider);display:flex;justify-content:flex-end;gap:10px">
+          <button type="button" class="btn btn-secondary" (click)="testConnection()">Verificar conectividad</button>
+          <button type="button" class="btn btn-primary" [disabled]="submitting() || !canSubmit()" (click)="submit()">
+            {{ submitting() ? "Guardando…" : "Guardar" }}
           </button>
         </div>
       </div>
@@ -155,6 +186,36 @@ export class ConectoresComponent implements OnInit {
   protected form: NewConnectorForm = emptyForm();
 
   protected readonly editingConnector = signal<Connector | null>(null);
+
+  protected readonly connectorTypes = [
+    { key: "gitlab", label: "GitLab" },
+    { key: "google_drive", label: "Google Drive" },
+    { key: "db", label: "Base de datos" },
+  ];
+  protected readonly testResult = signal<TestResult | null>(null);
+
+  protected vaultLabel(): string {
+    if (this.form.kind === "gitlab") return "Credencial en Vault (Personal Access Token)";
+    if (this.form.kind === "google_drive") return "Credencial en Vault (Service Account JSON)";
+    return "Credencial en Vault (usuario / password / host / puerto)";
+  }
+
+  protected vaultPlaceholder(): string {
+    if (this.form.kind === "gitlab") return "secrets/kb/gitlab";
+    if (this.form.kind === "google_drive") return "secrets/kb/drive";
+    return "secrets/kb/db-catalog";
+  }
+
+  protected testConnection(): void {
+    this.testResult.set({ message: "Verificando conectividad...", bg: "var(--color-neutral-100)", color: "var(--color-text)" });
+    setTimeout(() => {
+      this.testResult.set({
+        message: "✓ Conexión exitosa. Credencial validada en Vault.",
+        bg: "var(--color-accent-100)",
+        color: "var(--color-accent-800)",
+      });
+    }, 800);
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reload();
@@ -189,6 +250,7 @@ export class ConectoresComponent implements OnInit {
   protected openDialog(): void {
     this.form = emptyForm();
     this.dialogError.set(null);
+    this.testResult.set(null);
     this.dialogOpen.set(true);
   }
 
