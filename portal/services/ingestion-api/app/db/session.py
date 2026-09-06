@@ -13,8 +13,8 @@ from app.models.schemas import (
     ConnectorKind,
     DriveCatalogEntry,
     DriveFolderLink,
-    GitLabCatalogEntry,
     GitLabRepoLink,
+    GitLabRepoSelection,
     IngestionBatch,
     SchemaTable,
 )
@@ -102,41 +102,26 @@ def update_connector(connector_id: str, **fields: object) -> Connector | None:
     return updated
 
 
-_gitlab_catalog: list[GitLabCatalogEntry] = [
-    GitLabCatalogEntry(id="4892", nombre="telemetry/gps-core", grupo="telemetry", rama_default="main", ramas_disponibles=["main", "develop"]),
-    GitLabCatalogEntry(id="5012", nombre="core-api/gateway", grupo="core-api", rama_default="master", ramas_disponibles=["master", "develop"]),
-    GitLabCatalogEntry(id="6120", nombre="dispatch/routing-engine", grupo="dispatch", rama_default="release-2026", ramas_disponibles=["release-2026", "main"]),
-    GitLabCatalogEntry(id="3204", nombre="frontend/client-portal", grupo="frontend", rama_default="main", ramas_disponibles=["main", "develop"]),
-    GitLabCatalogEntry(id="7031", nombre="telemetry/fleet-events", grupo="telemetry", rama_default="main", ramas_disponibles=["main"]),
-    GitLabCatalogEntry(id="7145", nombre="billing/invoicing-service", grupo="billing", rama_default="main", ramas_disponibles=["main", "develop"]),
-]
-
 _repo_links: dict[str, GitLabRepoLink] = {}
-
-
-def list_gitlab_catalog() -> list[GitLabCatalogEntry]:
-    return list(_gitlab_catalog)
 
 
 def list_repo_links(connector_id: str) -> list[GitLabRepoLink]:
     return [link for link in _repo_links.values() if link.connector_id == connector_id]
 
 
-def link_gitlab_repos(connector_id: str, repo_ids: list[str], branch_by_id: dict[str, str]) -> list[GitLabRepoLink]:
-    catalog_by_id = {entry.id: entry for entry in _gitlab_catalog}
+def link_gitlab_repos(connector_id: str, selections: list[GitLabRepoSelection]) -> list[GitLabRepoLink]:
     already_linked = {link.repo_id for link in _repo_links.values() if link.connector_id == connector_id}
     created: list[GitLabRepoLink] = []
-    for repo_id in repo_ids:
-        entry = catalog_by_id.get(repo_id)
-        if entry is None or repo_id in already_linked:
+    for selection in selections:
+        if selection.repo_id in already_linked:
             continue
-        link_id = f"rl-{connector_id}-{repo_id}"
+        link_id = f"rl-{connector_id}-{selection.repo_id}"
         link = GitLabRepoLink(
             id=link_id,
             connector_id=connector_id,
-            repo=entry.nombre,
-            repo_id=repo_id,
-            rama=branch_by_id.get(repo_id, entry.rama_default),
+            repo=selection.repo_name,
+            repo_id=selection.repo_id,
+            rama=selection.rama,
         )
         _repo_links[link_id] = link
         created.append(link)

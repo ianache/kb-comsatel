@@ -37,12 +37,20 @@ class UpdateConnectorRequest(BaseModel):
     active: bool | None = None
 
 
-class GitLabCatalogEntry(BaseModel):
+class GitLabSearchResult(BaseModel):
     id: str
     nombre: str
     grupo: str
-    rama_default: str
+
+
+class GitLabBranches(BaseModel):
     ramas_disponibles: list[str]
+    rama_default: str
+
+
+class GitLabTestConnectionRequest(BaseModel):
+    base_uri: str
+    vault_secret_ref: str
 
 
 class GitLabRepoLink(BaseModel):
@@ -56,9 +64,15 @@ class GitLabRepoLink(BaseModel):
     estado: str = "Sincronizado"
 
 
+class GitLabRepoSelection(BaseModel):
+    repo_id: str
+    repo_name: str
+    grupo: str
+    rama: str
+
+
 class LinkGitlabReposRequest(BaseModel):
-    repo_ids: list[str]
-    branch_by_id: dict[str, str] = Field(default_factory=dict)
+    repos: list[GitLabRepoSelection]
 
 
 class DriveCatalogEntry(BaseModel):
