@@ -11,6 +11,7 @@ export async function GET(): Promise<NextResponse> {
   return NextResponse.json({
     authenticated: true,
     name: session.name,
+    email: session.email,
     roles: session.roles,
   });
 }

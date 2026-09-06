@@ -13,6 +13,7 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 export interface SessionData {
   sub: string;
   name: string;
+  email: string;
   roles: string[];
   accessToken: string;
   refreshToken?: string;

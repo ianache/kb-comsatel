@@ -3,6 +3,7 @@ import { Injectable, signal } from "@angular/core";
 export interface SessionInfo {
   authenticated: boolean;
   name?: string;
+  email?: string;
   roles?: string[];
 }
 

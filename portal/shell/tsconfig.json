@@ -8,6 +8,7 @@
     "moduleResolution": "bundler",
     "experimentalDecorators": true,
     "importHelpers": true,
+    "resolveJsonModule": true,
     "lib": ["ES2022", "dom"]
   },
   "angularCompilerOptions": {

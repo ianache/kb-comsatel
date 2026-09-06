@@ -1,9 +1,18 @@
-import { Component, OnInit, inject } from "@angular/core";
+import { Component, OnInit, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
 import { AuthService } from "./auth.service";
+import shellPackageJson from "../../package.json";
 
 const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?? "http://localhost:3000";
+
+type ServiceHealth = "ok" | "down" | "checking";
+
+interface ServiceRow {
+  key: string;
+  label: string;
+  health: ServiceHealth;
+}
 
 // Layout-only host, reproducing the shell chrome from the "Portal KM Comsatel" Claude
 // Design mockup: crimson gradient header (logo, search, status tags, user avatar) +
@@ -42,19 +51,60 @@ const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?
           />
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex:none">
-          <span class="tag" style="white-space:nowrap;background:rgba(255,255,255,0.16);color:#fff">
-            Keycloak realm: Apps
-          </span>
-          <div style="display:flex;align-items:center;gap:8px;padding-left:10px;border-left:1px solid rgba(255,255,255,0.3)">
-            <div
-              style="width:30px;height:30px;border-radius:50%;background:#fff;display:flex;align-items:center;
-                     justify-content:center;font-family:var(--font-heading);font-size:12px;color:var(--color-accent);flex:none"
+          <button type="button" class="btn btn-ghost btn-icon" style="color:#fff" aria-label="Notificaciones">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+            </svg>
+          </button>
+          <div style="position:relative;padding-left:10px;border-left:1px solid rgba(255,255,255,0.3)">
+            <button
+              type="button"
+              style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center"
+              (click)="toggleUserMenu()"
             >
-              {{ initials() }}
-            </div>
-            <div>
-              <div style="font-size:12px;font-family:var(--font-heading);color:#fff">{{ auth.session()?.name }}</div>
-              <div style="font-size:10px;color:rgba(255,255,255,0.72)">{{ roleLabel() }}</div>
+              <div
+                style="width:30px;height:30px;border-radius:50%;background:#fff;display:flex;align-items:center;
+                       justify-content:center;font-family:var(--font-heading);font-size:12px;color:var(--color-accent);flex:none"
+              >
+                {{ initials() }}
+              </div>
+            </button>
+            <div
+              *ngIf="userMenuOpen()"
+              class="card"
+              style="position:absolute;top:44px;right:0;width:260px;padding:12px;z-index:60;box-shadow:var(--shadow-lg)"
+            >
+              <div style="padding:4px 6px 10px">
+                <div style="font-family:var(--font-heading);font-size:14px">{{ auth.session()?.name }}</div>
+                <div class="text-muted" style="font-size:12px">{{ auth.session()?.email }}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div
+                  *ngFor="let role of auth.session()?.roles"
+                  style="padding:6px;font-size:12px;color:var(--color-text)"
+                  class="text-muted"
+                >
+                  {{ role }}
+                </div>
+              </div>
+              <div style="height:1px;background:var(--color-divider);margin:8px 0"></div>
+              <button
+                type="button"
+                disabled
+                style="display:block;width:100%;text-align:left;background:none;border:none;padding:8px 6px;
+                       font-size:13px;cursor:not-allowed;color:var(--color-neutral-400);border-radius:var(--radius-sm)"
+              >
+                Settings
+              </button>
+              <button
+                type="button"
+                style="display:block;width:100%;text-align:left;background:none;border:none;padding:8px 6px;
+                       font-size:13px;cursor:pointer;color:var(--color-accent);border-radius:var(--radius-sm)"
+                (click)="logout()"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>
@@ -76,12 +126,38 @@ const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?
             <a routerLink="/ingesta/conectores" routerLinkActive="nav-active" class="nav-item">Conectores y fuentes</a>
             <a routerLink="/ingesta/vault" routerLinkActive="nav-active" class="nav-item">Credenciales (Vault)</a>
           </nav>
-          <div style="padding:16px 18px;border-top:1px solid var(--color-divider)">
-            <div class="text-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em">Sesión activa</div>
-            <div style="font-family:var(--font-heading);font-size:16px;margin-top:2px">{{ roleLabel() }}</div>
-            <button type="button" class="btn btn-ghost" style="margin-top:8px;padding-inline:0" (click)="logout()">
-              Cerrar sesión
+          <div
+            style="padding:12px 18px;border-top:1px solid var(--color-divider);position:relative;display:flex;
+                   align-items:center;justify-content:space-between"
+          >
+            <span class="text-muted" style="font-size:11px;font-family:ui-monospace,Menlo,monospace">v{{ shellVersion }}</span>
+            <button
+              type="button"
+              style="background:none;border:none;padding:4px;cursor:pointer;display:flex;align-items:center"
+              (click)="toggleStatusMenu()"
+              aria-label="Estado de servicios"
+            >
+              <span [style]="statusDotStyle()"></span>
             </button>
+            <div
+              *ngIf="statusMenuOpen()"
+              class="card"
+              style="position:absolute;bottom:44px;right:12px;width:240px;padding:12px;z-index:60;box-shadow:var(--shadow-lg)"
+            >
+              <div class="card-kicker" style="margin-bottom:6px">Estado de servicios</div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div
+                  *ngFor="let svc of serviceRows()"
+                  style="display:flex;justify-content:space-between;align-items:center;font-size:13px"
+                >
+                  <span>{{ svc.label }}</span>
+                  <span style="display:flex;align-items:center;gap:6px">
+                    <span [style]="dotStyle(svc.health)"></span>
+                    <span class="text-muted" style="font-size:11px">{{ healthLabel(svc.health) }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </aside>
 
@@ -116,9 +192,18 @@ const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?
 })
 export class AppComponent implements OnInit {
   protected readonly auth = inject(AuthService);
+  protected readonly shellVersion = shellPackageJson.version;
+
+  protected readonly userMenuOpen = signal(false);
+  protected readonly statusMenuOpen = signal(false);
+  protected readonly serviceRows = signal<ServiceRow[]>([
+    { key: "bff", label: "BFF Gateway", health: "checking" },
+    { key: "ingestion", label: "Microservicios", health: "checking" },
+  ]);
 
   ngOnInit(): void {
     void this.auth.loadSession();
+    void this.checkServices();
   }
 
   protected initials(): string {
@@ -131,9 +216,63 @@ export class AppComponent implements OnInit {
       .join("");
   }
 
-  protected roleLabel(): string {
-    const roles = this.auth.session()?.roles ?? [];
-    return roles.length > 0 ? roles.join(", ") : "Sin rol asignado";
+  protected toggleUserMenu(): void {
+    this.userMenuOpen.update((open) => !open);
+  }
+
+  protected toggleStatusMenu(): void {
+    const opening = !this.statusMenuOpen();
+    this.statusMenuOpen.set(opening);
+    if (opening) void this.checkServices();
+  }
+
+  private async checkServices(): Promise<void> {
+    const checks: Array<[string, string]> = [
+      ["bff", `${BFF_BASE_URL}/api/health`],
+      ["ingestion", `${BFF_BASE_URL}/api/health/ingestion`],
+    ];
+    const results = await Promise.all(
+      checks.map(async ([key, url]) => {
+        try {
+          const response = await fetch(url, { credentials: "include" });
+          return { key, health: (response.ok ? "ok" : "down") as ServiceHealth };
+        } catch {
+          return { key, health: "down" as ServiceHealth };
+        }
+      }),
+    );
+    this.serviceRows.update((rows) =>
+      rows.map((row) => {
+        const result = results.find((r) => r.key === row.key);
+        return result ? { ...row, health: result.health } : row;
+      }),
+    );
+  }
+
+  protected healthLabel(health: ServiceHealth): string {
+    if (health === "ok") return "Operativo";
+    if (health === "down") return "Caído";
+    return "Verificando…";
+  }
+
+  private colorFor(health: ServiceHealth): string {
+    if (health === "ok") return "#22c55e";
+    if (health === "down") return "#ef4444";
+    return "#94a3b8";
+  }
+
+  protected dotStyle(health: ServiceHealth): string {
+    return `display:inline-block;width:8px;height:8px;border-radius:50%;background:${this.colorFor(health)}`;
+  }
+
+  protected statusDotStyle(): string {
+    const rows = this.serviceRows();
+    const worst: ServiceHealth = rows.some((r) => r.health === "down")
+      ? "down"
+      : rows.some((r) => r.health === "checking")
+        ? "checking"
+        : "ok";
+    return `display:inline-block;width:9px;height:9px;border-radius:50%;background:${this.colorFor(worst)}`;
   }
 
   protected logout(): void {

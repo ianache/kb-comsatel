@@ -35,5 +35,5 @@ function applyCorsHeaders(response: NextResponse, origin: string): void {
 // /api/ingesta/* ARE called via credentialed fetch() from the shell/MicroUI
 // origins and still need CORS.
 export const config = {
-  matcher: ["/api/ingesta/:path*", "/api/auth/session"],
+  matcher: ["/api/ingesta/:path*", "/api/auth/session", "/api/health/:path*"],
 };

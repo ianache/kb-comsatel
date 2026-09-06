@@ -45,37 +45,12 @@ export default async function RootPage() {
           </div>
           <span style={{ fontFamily: "var(--font-heading)", fontSize: 18, fontWeight: 700, color: "#fff" }}>COMSATEL</span>
           <span style={{ fontSize: 12, letterSpacing: "0.06em", color: "rgba(255,255,255,0.75)" }}>PORTAL KM</span>
-          <span className="tag" style={{ marginLeft: 8, whiteSpace: "nowrap", background: "rgba(255,255,255,0.16)", color: "#fff" }}>
-            OKE Producción · OIDC Keycloak
-          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 18, fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
-          <span>TLS 1.3 / mTLS forzado</span>
           <a href="#" style={{ color: "#fff" }}>
             Soporte
           </a>
         </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "10px 32px",
-          borderBottom: "1px solid var(--color-divider)",
-          fontSize: 12,
-        }}
-        className="text-muted"
-      >
-        <div style={{ display: "flex", gap: 16, alignItems: "center", fontFamily: "ui-monospace,Menlo,monospace" }}>
-          <span>GATEWAY-SEC-01</span>
-          <span>/</span>
-          <span>OIDC Proxy v2.4.1</span>
-          <span>/</span>
-          <span>PKCE-S256-ENFORCED</span>
-        </div>
-        <div style={{ fontFamily: "ui-monospace,Menlo,monospace" }}>OKE-CLUSTER-SA-EAST</div>
       </div>
 
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "460px 1fr", gap: 32, maxWidth: 1400, width: "100%", margin: "0 auto", padding: "36px 32px 48px" }}>

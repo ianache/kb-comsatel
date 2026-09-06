@@ -7,6 +7,7 @@ interface KeycloakAccessTokenClaims {
   sub: string;
   preferred_username?: string;
   name?: string;
+  email?: string;
   exp: number;
   realm_access?: { roles?: string[] };
 }
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   await attachSessionCookie(response, {
     sub: claims.sub,
     name: claims.name ?? claims.preferred_username ?? claims.sub,
+    email: claims.email ?? "",
     roles: claims.realm_access?.roles ?? [],
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
