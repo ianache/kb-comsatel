@@ -2,10 +2,18 @@ import { Component, OnInit, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router } from "@angular/router";
-import { GitLabCatalogEntry, GitLabRepoLink, IngestaApiService } from "../../ingesta-api.service";
+import { GitLabBranches, GitLabRepoLink, GitLabRepoSelection, GitLabSearchResult, IngestaApiService } from "../../ingesta-api.service";
 
-// Pantalla "Administrar repositorios GitLab" del diseño Claude Design: catálogo con
-// checkboxes + selector de rama por repo, "Añadir seleccionados", y tabla de ya vinculados.
+interface SearchRow {
+  entry: GitLabSearchResult;
+  branches: GitLabBranches | null;
+  branchesLoading: boolean;
+  branchesError: string | null;
+  selectedBranch: string;
+}
+
+// Pantalla "Administrar repositorios GitLab" del diseño Claude Design: búsqueda en vivo contra
+// la API real de GitLab (por nombre o ID), carga de ramas al seleccionar, y tabla de vinculados.
 @Component({
   selector: "km-administrar-repositorios",
   standalone: true,
@@ -17,10 +25,21 @@ import { GitLabCatalogEntry, GitLabRepoLink, IngestaApiService } from "../../ing
       </button>
 
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <input class="input" style="max-width:320px" placeholder="Buscar repositorio por nombre…" [(ngModel)]="filterText" name="filterText" />
-        <button type="button" class="btn btn-primary" [disabled]="selectedIds().size === 0 || linking()" (click)="addSelected()">
-          {{ linking() ? "Añadiendo…" : "Añadir seleccionados (" + selectedIds().size + ")" }}
+        <input
+          class="input"
+          style="max-width:320px"
+          placeholder="Buscar por nombre o ID de repositorio…"
+          [(ngModel)]="searchText"
+          name="searchText"
+          (ngModelChange)="onSearchTextChange($event)"
+        />
+        <button type="button" class="btn btn-primary" [disabled]="selectedRows().length === 0 || linking()" (click)="addSelected()">
+          {{ linking() ? "Añadiendo…" : "Añadir seleccionados (" + selectedRows().length + ")" }}
         </button>
+      </div>
+
+      <div class="card" style="padding:12px;margin-bottom:14px;background:var(--color-danger-100,#fee2e2)" *ngIf="errorBanner()">
+        <div style="font-size:13px;color:var(--color-danger-800,#991b1b)">{{ errorBanner() }}</div>
       </div>
 
       <table class="table">
@@ -34,28 +53,41 @@ import { GitLabCatalogEntry, GitLabRepoLink, IngestaApiService } from "../../ing
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let entry of filteredCatalog()">
+          <tr *ngFor="let row of rows()">
             <td>
               <input
                 type="checkbox"
                 style="accent-color:var(--color-accent);width:16px;height:16px"
-                [checked]="selectedIds().has(entry.id)"
-                [disabled]="isLinked(entry.id)"
-                (change)="toggleSelected(entry.id)"
+                [checked]="isSelected(row.entry.id)"
+                [disabled]="isLinked(row.entry.id)"
+                (change)="toggleSelected(row)"
               />
             </td>
-            <td style="font-family:ui-monospace,Menlo,monospace;font-size:12px">{{ entry.id }}</td>
-            <td>{{ entry.nombre }}</td>
-            <td class="text-muted">{{ entry.grupo }}</td>
+            <td style="font-family:ui-monospace,Menlo,monospace;font-size:12px">{{ row.entry.id }}</td>
+            <td>{{ row.entry.nombre }}</td>
+            <td class="text-muted">{{ row.entry.grupo }}</td>
             <td>
-              <select class="input" style="height:32px;padding:0 8px" [disabled]="isLinked(entry.id)" (change)="setBranch(entry.id, $event)">
-                <option *ngFor="let rama of entry.ramas_disponibles" [value]="rama" [selected]="rama === entry.rama_default">{{ rama }}</option>
+              <span class="text-muted" style="font-size:12px" *ngIf="row.branchesLoading">Cargando ramas…</span>
+              <span class="text-muted" style="font-size:12px" *ngIf="row.branchesError">{{ row.branchesError }}</span>
+              <select
+                class="input"
+                style="height:32px;padding:0 8px"
+                *ngIf="row.branches && !row.branchesLoading"
+                [disabled]="isLinked(row.entry.id)"
+                (change)="setBranch(row, $event)"
+              >
+                <option *ngFor="let rama of row.branches.ramas_disponibles" [value]="rama" [selected]="rama === row.selectedBranch">{{ rama }}</option>
               </select>
             </td>
           </tr>
         </tbody>
       </table>
-      <div class="text-muted" *ngIf="filteredCatalog().length === 0" style="margin-top:16px">Ningún repositorio coincide con el filtro.</div>
+      <div class="text-muted" *ngIf="searchText.trim().length === 0" style="margin-top:16px">
+        Escribe un nombre o ID de repositorio para buscar en GitLab.
+      </div>
+      <div class="text-muted" *ngIf="searchText.trim().length > 0 && !searching() && rows().length === 0" style="margin-top:16px">
+        Ningún repositorio coincide con la búsqueda.
+      </div>
 
       <h4 style="margin-top:28px">Repositorios ya vinculados</h4>
       <table class="table" style="margin-top:10px">
@@ -83,56 +115,113 @@ export class AdministrarRepositoriosComponent implements OnInit {
   private readonly router = inject(Router);
 
   private connectorId = "";
-  protected filterText = "";
-  protected readonly catalog = signal<GitLabCatalogEntry[]>([]);
+  protected searchText = "";
+  protected readonly rows = signal<SearchRow[]>([]);
   protected readonly linkedRepos = signal<GitLabRepoLink[]>([]);
-  protected readonly selectedIds = signal<Set<string>>(new Set());
-  protected readonly branchById = signal<Record<string, string>>({});
   protected readonly linking = signal(false);
+  protected readonly searching = signal(false);
+  protected readonly errorBanner = signal<string | null>(null);
+
+  private searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
   async ngOnInit(): Promise<void> {
     this.connectorId = this.route.snapshot.paramMap.get("id") ?? "";
-    await this.reload();
+    this.linkedRepos.set(await this.api.listConnectorRepos(this.connectorId));
   }
 
-  private async reload(): Promise<void> {
-    const [catalog, linked] = await Promise.all([
-      this.api.listGitlabCatalog(),
-      this.api.listConnectorRepos(this.connectorId),
-    ]);
-    this.catalog.set(catalog);
-    this.linkedRepos.set(linked);
+  protected onSearchTextChange(value: string): void {
+    if (this.searchDebounce) clearTimeout(this.searchDebounce);
+    const text = value.trim();
+    if (!text) {
+      this.rows.set([]);
+      return;
+    }
+    this.searchDebounce = setTimeout(() => void this.runSearch(text), 300);
   }
 
-  protected filteredCatalog(): GitLabCatalogEntry[] {
-    const text = this.filterText.trim().toLowerCase();
-    const catalog = this.catalog();
-    return text ? catalog.filter((entry) => entry.nombre.toLowerCase().includes(text)) : catalog;
+  private async runSearch(text: string): Promise<void> {
+    this.searching.set(true);
+    this.errorBanner.set(null);
+    try {
+      const results = await this.api.searchGitlabRepos(this.connectorId, text);
+      this.rows.set(
+        results.map((entry) => ({ entry, branches: null, branchesLoading: false, branchesError: null, selectedBranch: "" })),
+      );
+    } catch {
+      this.errorBanner.set("No se pudo conectar a GitLab: error de red.");
+      this.rows.set([]);
+    } finally {
+      this.searching.set(false);
+    }
   }
 
   protected isLinked(repoId: string): boolean {
     return this.linkedRepos().some((link) => link.repo_id === repoId);
   }
 
-  protected toggleSelected(repoId: string): void {
-    const next = new Set(this.selectedIds());
-    if (next.has(repoId)) next.delete(repoId);
-    else next.add(repoId);
-    this.selectedIds.set(next);
+  protected isSelected(repoId: string): boolean {
+    return this.rows().some((row) => row.entry.id === repoId && row.branches !== null && row.selectedBranch !== "" && this.selectedIds.has(repoId));
   }
 
-  protected setBranch(repoId: string, event: Event): void {
+  private readonly selectedIds = new Set<string>();
+
+  protected async toggleSelected(row: SearchRow): Promise<void> {
+    if (this.selectedIds.has(row.entry.id)) {
+      this.selectedIds.delete(row.entry.id);
+      this.rows.update((current) => current.map((r) => (r.entry.id === row.entry.id ? { ...r, branches: null, selectedBranch: "" } : r)));
+      return;
+    }
+
+    this.selectedIds.add(row.entry.id);
+    this.rows.update((current) => current.map((r) => (r.entry.id === row.entry.id ? { ...r, branchesLoading: true, branchesError: null } : r)));
+
+    const branches = await this.api.getGitlabBranches(this.connectorId, row.entry.id);
+    if (branches === null) {
+      this.selectedIds.delete(row.entry.id);
+      this.rows.update((current) =>
+        current.map((r) =>
+          r.entry.id === row.entry.id
+            ? { ...r, branchesLoading: false, branchesError: "No se pudieron cargar las ramas." }
+            : r,
+        ),
+      );
+      return;
+    }
+
+    this.rows.update((current) =>
+      current.map((r) =>
+        r.entry.id === row.entry.id
+          ? { ...r, branches, branchesLoading: false, branchesError: null, selectedBranch: branches.rama_default }
+          : r,
+      ),
+    );
+  }
+
+  protected setBranch(row: SearchRow, event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
-    this.branchById.update((current) => ({ ...current, [repoId]: value }));
+    this.rows.update((current) => current.map((r) => (r.entry.id === row.entry.id ? { ...r, selectedBranch: value } : r)));
+  }
+
+  protected selectedRows(): SearchRow[] {
+    return this.rows().filter((row) => this.selectedIds.has(row.entry.id) && row.branches !== null);
   }
 
   protected async addSelected(): Promise<void> {
-    if (this.selectedIds().size === 0) return;
+    const selections: GitLabRepoSelection[] = this.selectedRows().map((row) => ({
+      repo_id: row.entry.id,
+      repo_name: row.entry.nombre,
+      grupo: row.entry.grupo,
+      rama: row.selectedBranch,
+    }));
+    if (selections.length === 0) return;
+
     this.linking.set(true);
     try {
-      await this.api.linkGitlabRepos(this.connectorId, [...this.selectedIds()], this.branchById());
-      this.selectedIds.set(new Set());
-      await this.reload();
+      await this.api.linkGitlabRepos(this.connectorId, selections);
+      this.selectedIds.clear();
+      this.rows.set([]);
+      this.searchText = "";
+      this.linkedRepos.set(await this.api.listConnectorRepos(this.connectorId));
     } finally {
       this.linking.set(false);
     }
