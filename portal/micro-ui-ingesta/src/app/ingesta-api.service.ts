@@ -33,12 +33,22 @@ export interface CreateConnectorResult {
   error?: string;
 }
 
-export interface GitLabCatalogEntry {
+export interface GitLabSearchResult {
   id: string;
   nombre: string;
   grupo: string;
-  rama_default: string;
+}
+
+export interface GitLabBranches {
   ramas_disponibles: string[];
+  rama_default: string;
+}
+
+export interface GitLabRepoSelection {
+  repo_id: string;
+  repo_name: string;
+  grupo: string;
+  rama: string;
 }
 
 export interface GitLabRepoLink {
@@ -122,25 +132,52 @@ export class IngestaApiService {
     return { ok: true, connector: body as Connector };
   }
 
-  async listGitlabCatalog(): Promise<GitLabCatalogEntry[]> {
-    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gitlab-catalog`, { credentials: "include" });
+  async searchGitlabRepos(connectorId: string, query: string): Promise<GitLabSearchResult[]> {
+    const response = await fetch(
+      `${BFF_BASE_URL}/api/ingesta/gitlab/${connectorId}/search?q=${encodeURIComponent(query)}`,
+      { credentials: "include" },
+    );
     if (!response.ok) return [];
-    return (await response.json()) as GitLabCatalogEntry[];
+    return (await response.json()) as GitLabSearchResult[];
   }
 
-  async listConnectorRepos(connectorId: string): Promise<GitLabRepoLink[]> {
-    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/repos`, { credentials: "include" });
-    if (!response.ok) return [];
-    return (await response.json()) as GitLabRepoLink[];
+  async getGitlabBranches(connectorId: string, repoId: string): Promise<GitLabBranches | null> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gitlab/${connectorId}/branches/${repoId}`, {
+      credentials: "include",
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as GitLabBranches;
   }
 
-  async linkGitlabRepos(connectorId: string, repoIds: string[], branchById: Record<string, string>): Promise<GitLabRepoLink[]> {
+  async linkGitlabRepos(connectorId: string, selections: GitLabRepoSelection[]): Promise<GitLabRepoLink[]> {
     const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/repos`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo_ids: repoIds, branch_by_id: branchById }),
+      body: JSON.stringify({ repos: selections }),
     });
+    if (!response.ok) return [];
+    return (await response.json()) as GitLabRepoLink[];
+  }
+
+  async testGitlabConnection(baseUri: string, vaultSecretRef: string): Promise<{ ok: boolean; error?: string }> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gitlab/test-connection`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_uri: baseUri, vault_secret_ref: vaultSecretRef }),
+    });
+    if (response.ok) return { ok: true };
+    const body: unknown = await response.json().catch(() => null);
+    const detail =
+      body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+        ? body.detail
+        : `HTTP ${response.status}`;
+    return { ok: false, error: detail };
+  }
+
+  async listConnectorRepos(connectorId: string): Promise<GitLabRepoLink[]> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/repos`, { credentials: "include" });
     if (!response.ok) return [];
     return (await response.json()) as GitLabRepoLink[];
   }
