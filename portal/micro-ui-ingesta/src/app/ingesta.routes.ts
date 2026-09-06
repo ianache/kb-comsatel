@@ -24,4 +24,8 @@ export const INGESTA_ROUTES: Routes = [
     loadComponent: () =>
       import("./pages/esquemas-mapeados/esquemas-mapeados.component").then((m) => m.EsquemasMapeadosComponent),
   },
+  {
+    path: "vault",
+    loadComponent: () => import("./pages/vault-credenciales/vault-credenciales.component").then((m) => m.VaultCredencialesComponent),
+  },
 ];

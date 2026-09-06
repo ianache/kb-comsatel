@@ -80,6 +80,12 @@ export interface UpdateConnectorPayload {
   active?: boolean;
 }
 
+export interface VaultSecretMetadata {
+  path: string;
+  current_version: number | null;
+  updated_time: string | null;
+}
+
 const BFF_BASE_URL = (window as unknown as { KM_BFF_URL?: string }).KM_BFF_URL ?? "http://localhost:3000";
 
 // The MicroUI never talks to Keycloak or to ingestion-api directly — every call
@@ -184,5 +190,42 @@ export class IngestaApiService {
       return { ok: false, error: detail };
     }
     return { ok: true, connector: body as Connector };
+  }
+
+  async listVaultSecrets(): Promise<{ paths: string[] } | { error: string }> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/vault/secrets`, { credentials: "include" });
+    if (!response.ok) {
+      const body: unknown = await response.json().catch(() => null);
+      const detail = body && typeof body === "object" && "detail" in body && typeof body.detail === "string" ? body.detail : `HTTP ${response.status}`;
+      return { error: detail };
+    }
+    return { paths: (await response.json()) as string[] };
+  }
+
+  async getVaultSecretMetadata(path: string): Promise<VaultSecretMetadata | null> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/vault/secrets/${path}/metadata`, { credentials: "include" });
+    if (!response.ok) return null;
+    return (await response.json()) as VaultSecretMetadata;
+  }
+
+  async writeVaultSecret(path: string, data: Record<string, string>): Promise<{ ok: boolean; error?: string }> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/vault/secrets/${path}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (response.ok) return { ok: true };
+    const body: unknown = await response.json().catch(() => null);
+    const detail = body && typeof body === "object" && "detail" in body && typeof body.detail === "string" ? body.detail : `HTTP ${response.status}`;
+    return { ok: false, error: detail };
+  }
+
+  async deleteVaultSecret(path: string): Promise<boolean> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/vault/secrets/${path}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    return response.ok;
   }
 }
