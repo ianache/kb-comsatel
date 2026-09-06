@@ -88,7 +88,7 @@ async def post_connector_repos(
     _principal: Principal = Depends(require_role(*_WRITE_ROLES)),
 ) -> list[GitLabRepoLink]:
     _require_connector(connector_id)
-    return link_gitlab_repos(connector_id, body.repo_ids, body.branch_by_id)
+    return link_gitlab_repos(connector_id, body.repos)
 
 
 @router.get("/{connector_id}/folders", response_model=list[DriveFolderLink])
