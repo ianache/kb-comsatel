@@ -16,6 +16,7 @@ Este directorio contiene la validación manual del proyecto. Las pruebas no reem
 10. [09 - I5-A ingesta OKF desde GitLab](./09-i5a-gitlab-source-ingestion.md)
 11. [10 - I5-B indexación OKF remoto desde GitLab](./10-i5b-gitlab-source-indexing.md)
 12. [11 - I5-C ingesta read-only desde Google Drive](./11-i5c-google-drive-source.md)
+15. [14 - I5-D validación con MCP Inspector](./14-mcp-inspector.md)
 14. [13 - I5-D guía manual para los seis casos con timeout](./13-i5d-timeout-cases.md)
 13. [12 - I5-D evaluación piloto con preguntas de oro](./12-i5d-golden-evaluation.md)
 
