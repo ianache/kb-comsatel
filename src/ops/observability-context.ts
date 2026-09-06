@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { MetricsRegistry } from "./metrics-registry.js";
 import type { StructuredLogger } from "./structured-logger.js";
+import type { OtelProvider } from "./otel.js";
 
 export interface OperationScope {
   success(): void;
@@ -26,11 +27,16 @@ export function normalizeCorrelationId(value: string | undefined): string {
 export function createObservabilityContext(options: {
   metrics: MetricsRegistry;
   logger: StructuredLogger;
+  otel?: OtelProvider;
 }): ObservabilityContext {
   return {
     startOperation: ({ transport, operation, correlationId }) => {
       const startedAt = performance.now();
       const safeCorrelationId = normalizeCorrelationId(correlationId);
+      const span = options.otel?.startSpan(`mcp.${operation}`, {
+        transport,
+        operation,
+      });
       let finished = false;
 
       const finish = (outcome: "success" | "error", errorCode?: string) => {
@@ -61,6 +67,7 @@ export function createObservabilityContext(options: {
           correlationId: safeCorrelationId,
           ...(errorCode === undefined ? {} : { errorCode }),
         });
+        span?.end();
       };
 
       return {

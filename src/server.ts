@@ -9,6 +9,7 @@ import { localPrincipal } from "./mcp/tools.js";
 import { createHealthServer, type HealthServer } from "./ops/health-server.js";
 import { createMetricsRegistry } from "./ops/metrics-registry.js";
 import { createObservabilityContext } from "./ops/observability-context.js";
+import { createOtelProvider } from "./ops/otel.js";
 import { createStructuredLogger } from "./ops/structured-logger.js";
 import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
 import { createI3Runtime, type I3Runtime } from "./retrieval/i3-runtime.js";
@@ -25,7 +26,8 @@ function createRuntime(enableStdio: boolean): Application {
     service: config.otelServiceName,
     environment: config.otelEnvironment,
   });
-  const observability = createObservabilityContext({ metrics, logger });
+  const otel = createOtelProvider(config, logger);
+  const observability = createObservabilityContext({ metrics, logger, otel });
   let healthServer: HealthServer | undefined;
   let closeMcpServer: (() => Promise<void>) | undefined;
   let httpServer: HttpMcpServer | undefined;
@@ -49,6 +51,7 @@ function createRuntime(enableStdio: boolean): Application {
       i3Runtime = undefined;
       await closeDependencies?.();
       closeDependencies = undefined;
+      await otel.shutdown();
       await healthServer?.close();
       healthServer = undefined;
       started = false;
