@@ -40,7 +40,7 @@ function assertMetric(name: string): asserts name is MetricName {
 }
 
 function assertLabels(name: MetricName, labels: MetricLabels): void {
-  const allowed = new Set(metricDefinitions[name].labels);
+  const allowed = new Set<string>(metricDefinitions[name].labels);
   for (const key of Object.keys(labels)) {
     if (!allowed.has(key)) {
       throw new Error(`Unknown label: ${key}`);
