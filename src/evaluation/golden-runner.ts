@@ -24,7 +24,7 @@ export class GoldenEvaluationRunner {
   async run(
     dataset: GoldenEvaluationDataset | readonly GoldenEvaluationCase[],
   ): Promise<GoldenCaseResult[]> {
-    const cases = Array.isArray(dataset) ? dataset : dataset.cases;
+    const cases = "cases" in dataset ? dataset.cases : dataset;
     const results: GoldenCaseResult[] = [];
     for (const evaluationCase of cases) {
       results.push(await this.runCase(evaluationCase));
