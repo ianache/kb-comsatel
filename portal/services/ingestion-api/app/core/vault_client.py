@@ -21,13 +21,17 @@ class VaultClient:
         self._mount = mount
         self._prefix = prefix
         self._headers = {"X-Vault-Token": settings.vault_token}
+        self._transport: httpx.BaseTransport | None = None
 
     def _secret_path(self, path: str) -> str:
         return f"{self._prefix}/{path}" if self._prefix else path
 
+    def _client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(timeout=10.0, transport=self._transport)
+
     async def list_secrets(self) -> list[str]:
         url = f"{self._addr}/v1/{self._mount}/metadata/{self._prefix}".rstrip("/")
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with self._client() as client:
             response = await client.request("LIST", url, headers=self._headers)
         if response.status_code == 404:
             return []
@@ -36,7 +40,7 @@ class VaultClient:
 
     async def get_secret_metadata(self, path: str) -> dict:
         url = f"{self._addr}/v1/{self._mount}/metadata/{self._secret_path(path)}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with self._client() as client:
             response = await client.get(url, headers=self._headers)
         response.raise_for_status()
         data = response.json()["data"]
@@ -50,13 +54,21 @@ class VaultClient:
 
     async def write_secret(self, path: str, data: dict[str, str]) -> None:
         url = f"{self._addr}/v1/{self._mount}/data/{self._secret_path(path)}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with self._client() as client:
             response = await client.post(url, headers=self._headers, json={"data": data})
         response.raise_for_status()
 
+    async def get_secret_value(self, path: str) -> dict[str, str]:
+        """Return the raw secret data map. Server-side use only — never expose to the frontend."""
+        url = f"{self._addr}/v1/{self._mount}/data/{self._secret_path(path)}"
+        async with self._client() as client:
+            response = await client.get(url, headers=self._headers)
+        response.raise_for_status()
+        return response.json()["data"]["data"]
+
     async def delete_secret(self, path: str) -> None:
         url = f"{self._addr}/v1/{self._mount}/metadata/{self._secret_path(path)}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with self._client() as client:
             response = await client.delete(url, headers=self._headers)
         if response.status_code not in (204, 404):
             response.raise_for_status()
