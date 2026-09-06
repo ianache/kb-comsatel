@@ -7,6 +7,10 @@ import { createMcpServer } from "./mcp/adapter.js";
 import { createHttpMcpServer, type HttpMcpServer } from "./mcp/http-server.js";
 import { localPrincipal } from "./mcp/tools.js";
 import { createHealthServer, type HealthServer } from "./ops/health-server.js";
+import { createMetricsRegistry } from "./ops/metrics-registry.js";
+import { createObservabilityContext } from "./ops/observability-context.js";
+import { createOtelProvider } from "./ops/otel.js";
+import { createStructuredLogger } from "./ops/structured-logger.js";
 import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
 import { createI3Runtime, type I3Runtime } from "./retrieval/i3-runtime.js";
 
@@ -17,6 +21,13 @@ export interface Application {
 
 function createRuntime(enableStdio: boolean): Application {
   const config = loadConfig(process.env as Record<string, string | undefined>);
+  const metrics = createMetricsRegistry();
+  const logger = createStructuredLogger({
+    service: config.otelServiceName,
+    environment: config.otelEnvironment,
+  });
+  const otel = createOtelProvider(config, logger);
+  const observability = createObservabilityContext({ metrics, logger, otel });
   let healthServer: HealthServer | undefined;
   let closeMcpServer: (() => Promise<void>) | undefined;
   let httpServer: HttpMcpServer | undefined;
@@ -40,6 +51,7 @@ function createRuntime(enableStdio: boolean): Application {
       i3Runtime = undefined;
       await closeDependencies?.();
       closeDependencies = undefined;
+      await otel.shutdown();
       await healthServer?.close();
       healthServer = undefined;
       started = false;
@@ -58,6 +70,8 @@ function createRuntime(enableStdio: boolean): Application {
             host: config.host,
             port: config.port,
             isReady: () => isReady,
+            metrics,
+            logger,
           });
 
           const dependencies = await createRuntimeDependencies(config);
@@ -71,7 +85,7 @@ function createRuntime(enableStdio: boolean): Application {
           );
 
           if (enableStdio) {
-            const server = createMcpServer(engine);
+            const server = createMcpServer(engine, undefined, observability, "stdio");
             const transport = new StdioServerTransport();
             await server.connect(transport);
             closeMcpServer = () => server.close();

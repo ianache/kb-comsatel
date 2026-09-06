@@ -4,6 +4,8 @@ import {
   createHealthServer,
   type HealthServer,
 } from "../../src/ops/health-server.js";
+import { createMetricsRegistry } from "../../src/ops/metrics-registry.js";
+import { createStructuredLogger } from "../../src/ops/structured-logger.js";
 
 let healthServer: HealthServer | undefined;
 
@@ -43,6 +45,8 @@ describe("health server", () => {
       host: "127.0.0.1",
       port,
       isReady: () => false,
+      metrics: createMetricsRegistry(),
+      logger: createStructuredLogger({ service: "test", environment: "test" }),
     });
 
     const response = await fetch(`http://127.0.0.1:${port}/health`);
@@ -57,6 +61,8 @@ describe("health server", () => {
       host: "127.0.0.1",
       port,
       isReady: () => true,
+      metrics: createMetricsRegistry(),
+      logger: createStructuredLogger({ service: "test", environment: "test" }),
     });
 
     const headResponse = await fetch(`http://127.0.0.1:${port}/health`, {
@@ -79,6 +85,8 @@ describe("health server", () => {
         host: "0.0.0.0",
         port,
         isReady: () => true,
+        metrics: createMetricsRegistry(),
+        logger: createStructuredLogger({ service: "test", environment: "test" }),
       });
     } catch (error) {
       expect(error).toHaveProperty(
@@ -100,6 +108,8 @@ describe("health server", () => {
       host: "127.0.0.1",
       port,
       isReady: () => isReady,
+      metrics: createMetricsRegistry(),
+      logger: createStructuredLogger({ service: "test", environment: "test" }),
     });
 
     const beforeInitialization = await fetch(`http://127.0.0.1:${port}/ready`);
