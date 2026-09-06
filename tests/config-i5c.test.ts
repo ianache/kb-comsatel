@@ -17,6 +17,7 @@ describe("Google Drive source configuration", () => {
         KCP_GOOGLE_DRIVE_SOURCE_ENABLED: "true",
         KCP_GOOGLE_DRIVE_FOLDER_IDS: "folder-1, folder-2",
         KCP_GOOGLE_DRIVE_TOKEN: "oauth-token",
+        KCP_EGRESS_DRIVE_ALLOWED_HOSTS: "www.googleapis.com",
       }),
     ).toMatchObject({
       googleDriveSourceEnabled: true,
