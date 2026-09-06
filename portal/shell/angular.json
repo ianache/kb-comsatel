@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "projects": {
+    "shell": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "km",
+      "architect": {
+        "build": {
+          "builder": "@angular-builders/custom-webpack:browser",
+          "options": {
+            "outputPath": "dist/shell",
+            "index": "src/index.html",
+            "main": "src/main.ts",
+            "tsConfig": "tsconfig.app.json",
+            "customWebpackConfig": { "path": "webpack.config.js" },
+            "assets": [
+              { "glob": "comsatel-tokens.css", "input": "../shared/design-tokens", "output": "/" }
+            ]
+          },
+          "configurations": {
+            "production": { "outputHashing": "all" },
+            "development": { "optimization": false, "sourceMap": true }
+          },
+          "defaultConfiguration": "development"
+        },
+        "serve": {
+          "builder": "@angular-builders/custom-webpack:dev-server",
+          "options": { "port": 4200 },
+          "configurations": {
+            "production": { "buildTarget": "shell:build:production" },
+            "development": { "buildTarget": "shell:build:development" }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
+  }
+}

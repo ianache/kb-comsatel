@@ -24,7 +24,7 @@ export function middleware(request: NextRequest): NextResponse {
 function applyCorsHeaders(response: NextResponse, origin: string): void {
   response.headers.set("Access-Control-Allow-Origin", origin);
   response.headers.set("Access-Control-Allow-Credentials", "true");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
   response.headers.set("Access-Control-Allow-Headers", "Content-Type");
 }
 

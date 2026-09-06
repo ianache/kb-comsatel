@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.next/
+.venv/
+.env
+.env.local
+.session-store.json
+*.pyc
+__pycache__/
+.angular/
+*.log
