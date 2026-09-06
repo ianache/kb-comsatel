@@ -54,7 +54,7 @@ $env:KCP_I3_ENABLED = "true"
 $env:KCP_I3_QDRANT_ENABLED = "true"
 $env:KCP_I3_EMBEDDING_MODEL = "local-test"
 $env:KCP_MYSQL_ENABLED = "true"
-$env:KCP_MYSQL_URL = "mysql://<usuario>:<password>@<host>:3306/<base>"
+$env:KCP_MYSQL_URL = "mysql://kcp:kcp-local-password@127.0.0.1:3307/knowledge_context"
 
 npm run okf:source-index
 npm run okf:source-index

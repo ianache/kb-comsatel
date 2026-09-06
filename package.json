@@ -1,10 +1,26 @@
 {
-  "name": "knowledge-context-mcp",
-  "private": true,
+  "name": "@ianache/knowledge-context-mcp",
+  "version": "0.1.0",
+  "description": "MCP (Model Context Protocol) server exposing a read-only knowledge catalog for Comsatel's KM platform.",
   "type": "module",
   "engines": {
     "node": ">=22 <23"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ianache/kb-comsatel.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "bin": {
+    "knowledge-context-mcp": "dist/server.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
