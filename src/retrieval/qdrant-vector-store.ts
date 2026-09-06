@@ -156,6 +156,8 @@ export class QdrantVectorStore implements VectorStore {
       return response;
     } catch {
       throw new KcpError("INTERNAL_ERROR", "Vector store unavailable");
+    } finally {
+      deadline.dispose();
     }
   }
 }

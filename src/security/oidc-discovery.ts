@@ -75,9 +75,14 @@ export class OidcDiscoveryCache {
         signal: deadline.signal(),
         headers: { accept: "application/json" },
       });
-    const raw = await (this.options.breaker
-      ? this.options.breaker.execute(request)
-      : request());
+    let raw: unknown;
+    try {
+      raw = await (this.options.breaker
+        ? this.options.breaker.execute(request)
+        : request());
+    } finally {
+      deadline.dispose();
+    }
     if (typeof raw !== "object" || raw === null)
       throw new Error("Invalid OIDC discovery");
     const record = raw as Record<string, unknown>;

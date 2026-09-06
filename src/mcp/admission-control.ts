@@ -36,6 +36,7 @@ export interface AdmissionControlOptions {
   refillPerSecond: number;
   maxConcurrent: number;
   now?: () => number;
+  metrics?: MetricsRegistry;
 }
 
 export function createAdmissionControl({
@@ -43,6 +44,7 @@ export function createAdmissionControl({
   refillPerSecond,
   maxConcurrent,
   now = Date.now,
+  metrics,
 }: AdmissionControlOptions): AdmissionControl {
   if (
     !Number.isInteger(capacity) ||
@@ -56,6 +58,11 @@ export function createAdmissionControl({
   }
 
   const buckets = new Map<string, BucketState>();
+  let totalInFlight = 0;
+
+  function recordInflight(): void {
+    metrics?.set("kcp_http_inflight", { identity_class: "principal" }, totalInFlight);
+  }
 
   function getBucket(identity: string): BucketState {
     const current = now();
@@ -90,6 +97,10 @@ export function createAdmissionControl({
     admit(identity: string): AdmissionResult {
       const bucket = getBucket(identity || "anonymous");
       if (bucket.inFlight >= maxConcurrent) {
+        metrics?.increment("kcp_http_admission_total", {
+          outcome: "rejected",
+          reason: "concurrency",
+        });
         return new AdmissionRejectedError(503, 1, "concurrency");
       }
       if (bucket.tokens < 1) {
@@ -97,6 +108,10 @@ export function createAdmissionControl({
           1,
           Math.ceil((1 - bucket.tokens) / refillPerSecond),
         );
+        metrics?.increment("kcp_http_admission_total", {
+          outcome: "rejected",
+          reason: "rate_limit",
+        });
         return new AdmissionRejectedError(
           429,
           retryAfterSeconds,
@@ -105,18 +120,31 @@ export function createAdmissionControl({
       }
       bucket.tokens -= 1;
       bucket.inFlight += 1;
+      totalInFlight += 1;
+      metrics?.increment("kcp_http_admission_total", {
+        outcome: "accepted",
+        reason: "none",
+      });
+      recordInflight();
       let released = false;
       return {
         release: () => {
           if (released) return;
           released = true;
           bucket.inFlight = Math.max(0, bucket.inFlight - 1);
+          totalInFlight = Math.max(0, totalInFlight - 1);
+          recordInflight();
         },
       };
     },
     release(identity: string): void {
       const bucket = buckets.get(identity || "anonymous");
-      if (bucket) bucket.inFlight = Math.max(0, bucket.inFlight - 1);
+      if (bucket) {
+        bucket.inFlight = Math.max(0, bucket.inFlight - 1);
+        totalInFlight = Math.max(0, totalInFlight - 1);
+        recordInflight();
+      }
     },
   };
 }
+import type { MetricsRegistry } from "../ops/metrics-registry.js";

@@ -22,12 +22,13 @@ export interface Application {
 
 function createRuntime(enableStdio: boolean): Application {
   const config = loadConfig(process.env as Record<string, string | undefined>);
+  const metrics = createMetricsRegistry();
   const admissionControl = createAdmissionControl({
     capacity: config.rateLimitCapacity,
     refillPerSecond: config.rateLimitRefillPerSecond,
     maxConcurrent: config.maxConcurrentRequests,
+    metrics,
   });
-  const metrics = createMetricsRegistry();
   const logger = createStructuredLogger({
     service: config.otelServiceName,
     environment: config.otelEnvironment,
@@ -91,7 +92,14 @@ function createRuntime(enableStdio: boolean): Application {
           );
 
           if (enableStdio) {
-            const server = createMcpServer(engine, undefined, observability, "stdio");
+            const server = createMcpServer(
+              engine,
+              undefined,
+              observability,
+              "stdio",
+              undefined,
+              config.operationTimeoutMs,
+            );
             const transport = new StdioServerTransport();
             await server.connect(transport);
             closeMcpServer = () => server.close();
@@ -106,6 +114,7 @@ function createRuntime(enableStdio: boolean): Application {
               principalResolver: dependencies.principalResolver,
               localPrincipal: config.httpLocalMode ? localPrincipal : undefined,
               admissionControl,
+              operationTimeoutMs: config.operationTimeoutMs,
             });
             await httpServer.app.listen({
               host: config.host,

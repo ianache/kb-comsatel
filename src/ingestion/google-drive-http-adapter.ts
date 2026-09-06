@@ -146,7 +146,7 @@ export class GoogleDriveHttpAdapter implements GoogleDriveSourcePort {
         "Google Drive is unavailable",
       );
     } finally {
-      // The deadline owns the abort timer and is bounded by the operation.
+      deadline.dispose();
     }
   }
 }

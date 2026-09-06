@@ -144,7 +144,7 @@ export class GitLabHttpSourceAdapter implements GitLabSourcePort {
         "GitLab source is unavailable",
       );
     } finally {
-      // The deadline owns the abort timer and is bounded by the operation.
+      deadline.dispose();
     }
   }
 

@@ -27,6 +27,7 @@ export interface OperationDeadline {
   remainingMs(): number;
   signal(): AbortSignal;
   child(): OperationDeadline;
+  dispose(): void;
 }
 
 export function createOperationDeadline(
@@ -45,6 +46,7 @@ export function createOperationDeadline(
     expiresAt,
     remainingMs: () => Math.max(0, expiresAt - now()),
     signal: () => controller.signal,
+    dispose: () => clearTimeout(timer),
     child: () => {
       return createOperationDeadline(Math.max(1, expiresAt - now()), now);
     },

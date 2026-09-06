@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { AccessPrincipal } from "../domain/schemas.js";
 import type { ContextEngine } from "../engine/context-engine.js";
 import type { ObservabilityContext } from "../ops/observability-context.js";
+import { OperationTimeoutError } from "../ops/resilience.js";
 import { registerKnowledgeResources } from "./resources.js";
 import { registerKnowledgeTools } from "./tools.js";
 
@@ -12,6 +13,7 @@ export function createMcpServer(
   observability?: ObservabilityContext,
   transport: "http" | "stdio" = "stdio",
   correlationId?: string,
+  operationTimeoutMs = 10_000,
 ): McpServer {
   const server = new McpServer({
     name: "knowledge-context-mcp",
@@ -34,6 +36,7 @@ export function createMcpServer(
             observability,
             transport,
             correlationId,
+            operationTimeoutMs,
           ),
     );
   }
@@ -56,6 +59,7 @@ export function instrumentToolHandler(
   observability: ObservabilityContext,
   transport: "http" | "stdio",
   correlationId?: string,
+  operationTimeoutMs = 10_000,
 ): (input: unknown) => Promise<CallToolResult> {
   return async (input) => {
     const scope = observability.startOperation({
@@ -63,8 +67,15 @@ export function instrumentToolHandler(
       operation,
       correlationId,
     });
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     try {
-      const result = await handler(input);
+      const deadline = new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new OperationTimeoutError()),
+          operationTimeoutMs,
+        );
+      });
+      const result = await Promise.race([handler(input), deadline]);
       if (result.isError) {
         scope.failure(extractErrorCode(result));
       } else {
@@ -74,6 +85,8 @@ export function instrumentToolHandler(
     } catch {
       scope.failure("INTERNAL_ERROR");
       throw new Error("Internal MCP tool error");
+    } finally {
+      if (timeout !== undefined) clearTimeout(timeout);
     }
   };
 }

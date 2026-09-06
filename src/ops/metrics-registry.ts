@@ -9,6 +9,9 @@ const metricDefinitions = {
   kcp_dependency_requests_total: { type: "counter", labels: ["dependency", "operation", "outcome"] },
   kcp_dependency_duration_ms: { type: "histogram", labels: ["dependency", "operation"] },
   kcp_audit_events_total: { type: "counter", labels: ["operation", "outcome"] },
+  kcp_resilience_events_total: { type: "counter", labels: ["dependency", "event"] },
+  kcp_http_admission_total: { type: "counter", labels: ["outcome", "reason"] },
+  kcp_http_inflight: { type: "gauge", labels: ["identity_class"] },
 } as const;
 
 type MetricName = keyof typeof metricDefinitions;
@@ -49,6 +52,9 @@ function assertLabels(name: MetricName, labels: MetricLabels): void {
   for (const key of metricDefinitions[name].labels) {
     if (labels[key] === undefined) {
       throw new Error(`Missing label: ${key}`);
+    }
+    if (!/^[A-Za-z0-9_.:-]{1,128}$/u.test(labels[key]!)) {
+      throw new Error(`Unsafe metric label: ${key}`);
     }
   }
 }

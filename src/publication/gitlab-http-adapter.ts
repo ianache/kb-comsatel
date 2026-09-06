@@ -259,7 +259,7 @@ export class GitLabHttpAdapter implements GitLabPort {
           : "transport error",
       );
     } finally {
-      // The deadline owns the abort timer and is bounded by the operation.
+      deadline.dispose();
     }
   }
 

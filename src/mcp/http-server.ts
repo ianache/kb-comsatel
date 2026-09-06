@@ -18,6 +18,7 @@ export interface HttpMcpServerOptions {
   localPrincipal?: Parameters<typeof createMcpServer>[1];
   observability?: ObservabilityContext;
   admissionControl?: AdmissionControl;
+  operationTimeoutMs?: number;
 }
 
 export interface HttpMcpServer {
@@ -34,6 +35,7 @@ export function createHttpMcpServer({
   localPrincipal,
   observability,
   admissionControl,
+  operationTimeoutMs = 10_000,
 }: HttpMcpServerOptions): HttpMcpServer {
   if (!principalResolver && !localPrincipal) {
     throw new Error("HTTP authentication is not configured");
@@ -61,6 +63,7 @@ export function createHttpMcpServer({
         observability,
         "http",
         typeof correlationId === "string" ? correlationId : undefined,
+        operationTimeoutMs,
       );
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,

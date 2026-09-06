@@ -93,7 +93,7 @@ export class HttpEmbeddingProvider implements EmbeddingProvider {
     } catch {
       throw new KcpError("INTERNAL_ERROR", "Embedding response unavailable");
     } finally {
-      // The deadline owns the abort timer and is bounded by the operation.
+      deadline.dispose();
     }
   }
 }

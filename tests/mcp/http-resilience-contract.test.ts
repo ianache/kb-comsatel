@@ -3,6 +3,9 @@ import { createHttpMcpServer } from "../../src/mcp/http-server.js";
 import { AdmissionRejectedError } from "../../src/mcp/admission-control.js";
 import { localPrincipal } from "../../src/mcp/tools.js";
 import type { ContextEngine } from "../../src/engine/context-engine.js";
+import { httpErrorResponse } from "../../src/mcp/http-errors.js";
+import { EgressDeniedError } from "../../src/security/egress-policy.js";
+import { OperationTimeoutError, CircuitOpenError } from "../../src/ops/resilience.js";
 
 function rejectedServer(statusCode: 429 | 503) {
   return createHttpMcpServer({
@@ -47,5 +50,14 @@ describe("HTTP resilience contract", () => {
     } finally {
       await server.close();
     }
+  });
+
+  it("maps operational errors without leaking internal details", () => {
+    expect(httpErrorResponse(new EgressDeniedError("gitlab", "host_not_allowed", "gitlab.example.com"))).toMatchObject({
+      statusCode: 403,
+      body: { error: { code: "EGRESS_DENIED", message: "Outbound request denied" } },
+    });
+    expect(httpErrorResponse(new OperationTimeoutError()).statusCode).toBe(504);
+    expect(httpErrorResponse(new CircuitOpenError()).statusCode).toBe(503);
   });
 });
