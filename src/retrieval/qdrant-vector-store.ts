@@ -7,6 +7,9 @@ import type {
   VectorSearchRequest,
 } from "./vector-store.js";
 import { buildVectorFilter } from "./vector-filters.js";
+import type { CircuitBreaker, OperationDeadline } from "../ops/resilience.js";
+import { createOperationDeadline } from "../ops/resilience.js";
+import type { EgressPolicy } from "../security/egress-policy.js";
 
 type Fetcher = (input: string | URL, init?: RequestInit) => Promise<Response>;
 
@@ -14,6 +17,10 @@ export interface QdrantVectorStoreOptions {
   url: string;
   collection: string;
   fetcher?: Fetcher;
+  egressPolicy?: EgressPolicy;
+  breaker?: CircuitBreaker;
+  deadline?: OperationDeadline;
+  timeoutMs?: number;
 }
 
 export class QdrantVectorStore implements VectorStore {
@@ -132,8 +139,17 @@ export class QdrantVectorStore implements VectorStore {
     init: RequestInit,
     allowNotFound = false,
   ): Promise<Response> {
+    const requestUrl = this.options.egressPolicy
+      ? await this.options.egressPolicy.validate(url, "qdrant")
+      : url;
+    const deadline = this.options.deadline?.child() ??
+      createOperationDeadline(this.options.timeoutMs ?? 10_000);
     try {
-      const response = await this.fetcher(url, init);
+      const request = () =>
+        this.fetcher(requestUrl, { ...init, signal: deadline.signal() });
+      const response = await (this.options.breaker
+        ? this.options.breaker.execute(request)
+        : request());
       if (!response.ok && !(allowNotFound && response.status === 404)) {
         throw new Error("vector store request failed");
       }

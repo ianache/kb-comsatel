@@ -5,6 +5,9 @@ import type {
   SourceTreeEntry,
 } from "./source-port.js";
 import { sourceUri } from "./fake-gitlab-source-adapter.js";
+import type { CircuitBreaker, OperationDeadline } from "../ops/resilience.js";
+import { createOperationDeadline } from "../ops/resilience.js";
+import type { EgressPolicy } from "../security/egress-policy.js";
 
 export type SourceFetcher = (
   input: string | URL,
@@ -16,6 +19,9 @@ export interface GitLabHttpSourceAdapterOptions {
   token: string;
   timeoutMs?: number;
   fetcher?: SourceFetcher;
+  egressPolicy?: EgressPolicy;
+  breaker?: CircuitBreaker;
+  deadline?: OperationDeadline;
 }
 
 export class GitLabHttpSourceAdapter implements GitLabSourcePort {
@@ -103,14 +109,21 @@ export class GitLabHttpSourceAdapter implements GitLabSourcePort {
   }
 
   private async requestResponse(path: string): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const url = this.options.egressPolicy
+      ? await this.options.egressPolicy.validate(path, "gitlab-source")
+      : path;
+    const deadline = this.options.deadline?.child() ??
+      createOperationDeadline(this.timeoutMs);
     try {
-      const response = await this.fetcher(path, {
-        method: "GET",
-        headers: { "PRIVATE-TOKEN": this.options.token },
-        signal: controller.signal,
-      });
+      const request = () =>
+        this.fetcher(url, {
+          method: "GET",
+          headers: { "PRIVATE-TOKEN": this.options.token },
+          signal: deadline.signal(),
+        });
+      const response = await (this.options.breaker
+        ? this.options.breaker.execute(request)
+        : request());
       if (!response.ok) {
         const code =
           response.status === 401 || response.status === 403
@@ -131,7 +144,7 @@ export class GitLabHttpSourceAdapter implements GitLabSourcePort {
         "GitLab source is unavailable",
       );
     } finally {
-      clearTimeout(timer);
+      // The deadline owns the abort timer and is bounded by the operation.
     }
   }
 

@@ -76,6 +76,7 @@ const configSchema = z.object({
   breakerOpenMs: positiveIntegerSchema,
   breakerHalfOpenMaxCalls: positiveIntegerSchema,
   egressAllowHttp: z.boolean(),
+  egressAllowPrivateNetworks: z.boolean(),
   egressGitlabAllowedHosts: z.array(z.string().min(1)),
   egressGitlabSourceAllowedHosts: z.array(z.string().min(1)),
   egressDriveAllowedHosts: z.array(z.string().min(1)),
@@ -434,6 +435,10 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       "KCP_BREAKER_HALF_OPEN_MAX_CALLS",
     ),
     egressAllowHttp: parseBoolean(env.KCP_EGRESS_ALLOW_HTTP, false),
+    egressAllowPrivateNetworks: parseBoolean(
+      env.KCP_EGRESS_ALLOW_PRIVATE_NETWORKS,
+      false,
+    ),
     egressGitlabAllowedHosts,
     egressGitlabSourceAllowedHosts,
     egressDriveAllowedHosts,

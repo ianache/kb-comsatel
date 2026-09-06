@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import type { AppConfig } from "../config.js";
 
 export type EgressDependency =
   | "gitlab"
@@ -64,7 +65,7 @@ function isPrivateIpv4(address: string): boolean {
   if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet))) {
     return false;
   }
-  const [a, b] = octets;
+  const [a = -1, b = -1] = octets;
   return (
     a === 0 ||
     a === 10 ||
@@ -173,4 +174,31 @@ export function createEgressPolicy({
     validate,
     validateRedirect: validate,
   };
+}
+
+export function createConfiguredEgressPolicy(
+  config: Pick<
+    AppConfig,
+    | "egressAllowHttp"
+    | "egressAllowPrivateNetworks"
+    | "egressGitlabAllowedHosts"
+    | "egressGitlabSourceAllowedHosts"
+    | "egressDriveAllowedHosts"
+    | "egressEmbeddingAllowedHosts"
+    | "egressQdrantAllowedHosts"
+    | "egressOidcAllowedHosts"
+  >,
+): EgressPolicy {
+  return createEgressPolicy({
+    allowHttp: config.egressAllowHttp,
+    allowPrivateNetworks: config.egressAllowPrivateNetworks,
+    allowedHosts: {
+      gitlab: config.egressGitlabAllowedHosts,
+      "gitlab-source": config.egressGitlabSourceAllowedHosts,
+      drive: config.egressDriveAllowedHosts,
+      embedding: config.egressEmbeddingAllowedHosts,
+      qdrant: config.egressQdrantAllowedHosts,
+      oidc: config.egressOidcAllowedHosts,
+    },
+  });
 }
