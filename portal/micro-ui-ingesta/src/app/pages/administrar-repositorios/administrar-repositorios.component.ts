@@ -146,7 +146,7 @@ export class AdministrarRepositoriosComponent implements OnInit {
     try {
       const outcome = await this.api.searchGitlabRepos(this.connectorId, text);
       if (!outcome.ok) {
-        this.errorBanner.set(`No se pudo conectar a GitLab: ${outcome.error}`);
+        this.errorBanner.set(outcome.error);
         this.rows.set([]);
         return;
       }
