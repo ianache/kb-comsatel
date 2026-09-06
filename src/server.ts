@@ -13,6 +13,7 @@ import { createOtelProvider } from "./ops/otel.js";
 import { createStructuredLogger } from "./ops/structured-logger.js";
 import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
 import { createI3Runtime, type I3Runtime } from "./retrieval/i3-runtime.js";
+import { createAdmissionControl } from "./mcp/admission-control.js";
 
 export interface Application {
   start(): Promise<void>;
@@ -21,6 +22,11 @@ export interface Application {
 
 function createRuntime(enableStdio: boolean): Application {
   const config = loadConfig(process.env as Record<string, string | undefined>);
+  const admissionControl = createAdmissionControl({
+    capacity: config.rateLimitCapacity,
+    refillPerSecond: config.rateLimitRefillPerSecond,
+    maxConcurrent: config.maxConcurrentRequests,
+  });
   const metrics = createMetricsRegistry();
   const logger = createStructuredLogger({
     service: config.otelServiceName,
@@ -99,6 +105,7 @@ function createRuntime(enableStdio: boolean): Application {
               engine,
               principalResolver: dependencies.principalResolver,
               localPrincipal: config.httpLocalMode ? localPrincipal : undefined,
+              admissionControl,
             });
             await httpServer.app.listen({
               host: config.host,
