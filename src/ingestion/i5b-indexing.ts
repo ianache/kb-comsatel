@@ -1,5 +1,6 @@
 import type { CompiledCorpus, OkfCorpusSource } from "../okf/compiler.js";
 import type { IngestionSummary } from "../retrieval/ingestion-indexer.js";
+import { createHash } from "node:crypto";
 
 export interface I5BIndexRequest {
   source: OkfCorpusSource;
@@ -8,6 +9,8 @@ export interface I5BIndexRequest {
 }
 
 export interface I5BIndexResult {
+  sourceSystem: "gitlab" | "google-drive";
+  sourceId: string;
   projectId: string;
   ref: string;
   resolvedRevision: string;
@@ -33,20 +36,28 @@ export async function indexGitLabCorpus(
   request: I5BIndexRequest,
   dependencies: I5BIndexDependencies,
 ): Promise<I5BIndexResult> {
-  const source = requireGitLabSource(request.source);
+  return indexRemoteCorpus(request, dependencies);
+}
+
+export async function indexRemoteCorpus(
+  request: I5BIndexRequest,
+  dependencies: I5BIndexDependencies,
+): Promise<I5BIndexResult> {
+  const source = requireRemoteSource(request.source);
   const base = {
-    projectId: source.projectId,
-    ref: source.ref,
+    sourceSystem: source.kind,
+    sourceId:
+      source.kind === "gitlab" ? source.projectId : source.folderIds.join(","),
+    projectId:
+      source.kind === "gitlab" ? source.projectId : source.folderIds.join(","),
+    ref: source.kind === "gitlab" ? source.ref : "drive",
     resolvedRevision: "",
     corpusHash: "",
     counts: { discovered: 0, valid: 0, indexable: 0, errors: 0 },
   };
 
   try {
-    const resolvedRevision = await source.source.resolveRevision({
-      projectId: source.projectId,
-      ref: source.ref,
-    });
+    const resolvedRevision = await resolveRevision(source);
     const corpus = await dependencies.compile(request.source, {
       mode: request.mode,
     });
@@ -99,9 +110,29 @@ export async function indexGitLabCorpus(
   }
 }
 
-function requireGitLabSource(source: OkfCorpusSource) {
-  if (typeof source === "string" || source.kind !== "gitlab") {
-    throw new Error("I5-B requires a GitLab source");
+function requireRemoteSource(source: OkfCorpusSource) {
+  if (typeof source === "string") {
+    throw new Error("I5-B requires a remote source");
   }
   return source;
+}
+
+async function resolveRevision(
+  source: Exclude<OkfCorpusSource, string>,
+): Promise<string> {
+  if (source.kind === "gitlab") {
+    return source.source.resolveRevision({
+      projectId: source.projectId,
+      ref: source.ref,
+    });
+  }
+  const files = await source.source.listFiles({ folderIds: source.folderIds });
+  const identity = files
+    .map(
+      (file) =>
+        `${file.folderId}/${file.fileId}:${file.version ?? file.modifiedTime ?? "unknown"}`,
+    )
+    .sort()
+    .join("\n");
+  return createHash("sha256").update(identity).digest("hex");
 }

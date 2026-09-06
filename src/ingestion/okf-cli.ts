@@ -4,14 +4,16 @@ import { runI3Indexing, runI3IndexingSummary } from "./i3-cli.js";
 import { loadConfig } from "../config.js";
 import { GitLabHttpSourceAdapter } from "./gitlab-http-source-adapter.js";
 import { SourceConfigurationError } from "./source-errors.js";
-import { indexGitLabCorpus } from "./i5b-indexing.js";
+import { indexRemoteCorpus } from "./i5b-indexing.js";
+import { createGoogleDriveOkfSource } from "./google-drive-content.js";
+import { GoogleDriveHttpAdapter } from "./google-drive-http-adapter.js";
 
 export interface OkfArgs {
   command: "validate" | "compile" | "index";
   sourceDir: string;
   outputDir: string;
   mode: CompileOptions["mode"];
-  source: "local" | "gitlab";
+  source: "local" | "gitlab" | "google-drive";
 }
 
 export function parseOkfArgs(args: readonly string[]): OkfArgs {
@@ -46,8 +48,12 @@ export function parseOkfArgs(args: readonly string[]): OkfArgs {
         mode = value;
       }
       if (argument === "--source") {
-        if (value !== "local" && value !== "gitlab") {
-          throw new Error("OKF source must be local or gitlab");
+        if (
+          value !== "local" &&
+          value !== "gitlab" &&
+          value !== "google-drive"
+        ) {
+          throw new Error("OKF source must be local, gitlab, or google-drive");
         }
         source = value;
       }
@@ -56,7 +62,7 @@ export function parseOkfArgs(args: readonly string[]): OkfArgs {
       positional.push(argument);
     }
   }
-  sourceDir ??= positional[0] ?? (source === "gitlab" ? "" : undefined);
+  sourceDir ??= positional[0] ?? (source !== "local" ? "" : undefined);
   outputDir ??= positional[1] ?? ".tmp/i4a-okf-projection";
   if (sourceDir === undefined)
     throw new Error("OKF source directory is required");
@@ -70,8 +76,11 @@ export async function runOkfCommand(
   try {
     const options = parseOkfArgs(args);
     const corpusSource = await resolveCorpusSource(environment, options);
-    if (options.command === "index" && options.source === "gitlab") {
-      const result = await indexGitLabCorpus(
+    if (
+      options.command === "index" &&
+      (options.source === "gitlab" || options.source === "google-drive")
+    ) {
+      const result = await indexRemoteCorpus(
         {
           source: corpusSource,
           outputDir: options.outputDir,
@@ -123,27 +132,42 @@ async function resolveCorpusSource(
 ): Promise<string | Parameters<typeof compileOkfCorpus>[0]> {
   if (options.source === "local") return options.sourceDir;
   const config = loadConfig(environment);
-  if (!config.gitlabSourceEnabled) {
+  if (options.source === "gitlab") {
+    if (!config.gitlabSourceEnabled) {
+      throw new SourceConfigurationError(
+        "GitLab source is disabled; set KCP_GITLAB_SOURCE_ENABLED=true",
+      );
+    }
+    if (!config.gitlabSourceProjectId || !config.gitlabSourceToken) {
+      throw new SourceConfigurationError(
+        "GitLab source configuration is incomplete",
+      );
+    }
+    return {
+      kind: "gitlab",
+      source: new GitLabHttpSourceAdapter({
+        baseUrl: config.gitlabSourceBaseUrl,
+        token: config.gitlabSourceToken,
+        timeoutMs: config.gitlabSourceTimeoutMs,
+      }),
+      projectId: config.gitlabSourceProjectId,
+      ref: config.gitlabSourceRef,
+      root: config.gitlabSourceRoot,
+    };
+  }
+  if (!config.googleDriveSourceEnabled || !config.googleDriveToken) {
     throw new SourceConfigurationError(
-      "GitLab source is disabled; set KCP_GITLAB_SOURCE_ENABLED=true",
+      "Google Drive source is disabled or incomplete; set KCP_GOOGLE_DRIVE_SOURCE_ENABLED=true",
     );
   }
-  if (!config.gitlabSourceProjectId || !config.gitlabSourceToken) {
-    throw new SourceConfigurationError(
-      "GitLab source configuration is incomplete",
-    );
-  }
-  return {
-    kind: "gitlab",
-    source: new GitLabHttpSourceAdapter({
-      baseUrl: config.gitlabSourceBaseUrl,
-      token: config.gitlabSourceToken,
-      timeoutMs: config.gitlabSourceTimeoutMs,
+  return createGoogleDriveOkfSource(
+    new GoogleDriveHttpAdapter({
+      baseUrl: config.googleDriveBaseUrl,
+      token: config.googleDriveToken,
+      timeoutMs: config.googleDriveTimeoutMs,
     }),
-    projectId: config.gitlabSourceProjectId,
-    ref: config.gitlabSourceRef,
-    root: config.gitlabSourceRoot,
-  };
+    config.googleDriveFolderIds,
+  );
 }
 
 if (process.argv[1]?.endsWith("okf-cli.ts")) {

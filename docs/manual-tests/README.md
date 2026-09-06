@@ -15,6 +15,7 @@ Este directorio contiene la validación manual del proyecto. Las pruebas no reem
 9. [08 - I4-B publicación OKF mediante GitLab](./08-i4b-gitlab-publication.md)
 10. [09 - I5-A ingesta OKF desde GitLab](./09-i5a-gitlab-source-ingestion.md)
 11. [10 - I5-B indexación OKF remoto desde GitLab](./10-i5b-gitlab-source-indexing.md)
+12. [11 - I5-C ingesta read-only desde Google Drive](./11-i5c-google-drive-source.md)
 
 ## Criterio de aprobación
 

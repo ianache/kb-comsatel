@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SourceConfigurationError } from "./ingestion/source-errors.js";
+import { GoogleDriveSourceError } from "./ingestion/google-drive-errors.js";
 
 const logLevelSchema = z.enum(["debug", "info", "warn", "error"]);
 const portSchema = z.number().int().min(1).max(65535);
@@ -58,6 +59,11 @@ const configSchema = z.object({
   gitlabSourceRoot: z.string(),
   gitlabSourceToken: z.string().min(1).optional(),
   gitlabSourceTimeoutMs: positiveIntegerSchema,
+  googleDriveSourceEnabled: z.boolean(),
+  googleDriveBaseUrl: z.string().url(),
+  googleDriveFolderIds: z.array(z.string().min(1)),
+  googleDriveToken: z.string().min(1).optional(),
+  googleDriveTimeoutMs: positiveIntegerSchema,
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -130,6 +136,12 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     false,
   );
   const gitlabSourceBaseUrl = env.KCP_GITLAB_SOURCE_BASE_URL ?? gitlabBaseUrl;
+  const googleDriveSourceEnabled = parseBoolean(
+    env.KCP_GOOGLE_DRIVE_SOURCE_ENABLED,
+    false,
+  );
+  const googleDriveFolderIds = parseStringList(env.KCP_GOOGLE_DRIVE_FOLDER_IDS);
+  const googleDriveToken = env.KCP_GOOGLE_DRIVE_TOKEN;
 
   if (mysqlEnabled && !env.KCP_MYSQL_URL) {
     throw new Error("MySQL URL is required");
@@ -163,6 +175,18 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   if (gitlabSourceEnabled && !env.KCP_GITLAB_SOURCE_TOKEN) {
     throw new SourceConfigurationError("GitLab source token is required");
+  }
+  if (googleDriveSourceEnabled && googleDriveFolderIds.length === 0) {
+    throw new GoogleDriveSourceError(
+      "DRIVE_INVALID_RESPONSE",
+      "Google Drive folder IDs are required",
+    );
+  }
+  if (googleDriveSourceEnabled && !googleDriveToken) {
+    throw new GoogleDriveSourceError(
+      "DRIVE_AUTH_REQUIRED",
+      "Google Drive token is required",
+    );
   }
 
   return configSchema.parse({
@@ -270,6 +294,16 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       env.KCP_GITLAB_SOURCE_TIMEOUT_MS,
       10_000,
       "KCP_GITLAB_SOURCE_TIMEOUT_MS",
+    ),
+    googleDriveSourceEnabled,
+    googleDriveBaseUrl:
+      env.KCP_GOOGLE_DRIVE_BASE_URL ?? "https://www.googleapis.com/drive/v3",
+    googleDriveFolderIds,
+    googleDriveToken,
+    googleDriveTimeoutMs: parsePositiveInteger(
+      env.KCP_GOOGLE_DRIVE_TIMEOUT_MS,
+      10_000,
+      "KCP_GOOGLE_DRIVE_TIMEOUT_MS",
     ),
   });
 }

@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { parseOkfMarkdown } from "./frontmatter-parser.js";
 import type { GitLabSourcePort } from "../ingestion/source-port.js";
+import type { GoogleDriveOkfSource } from "../ingestion/google-drive-content.js";
 
 export interface RawOkfFile {
   relativePath: string;
@@ -87,3 +88,6 @@ export async function readGitLabOkfFiles(
   }
   return result;
 }
+
+export { readGoogleDriveOkfFiles } from "../ingestion/google-drive-content.js";
+export type { GoogleDriveOkfSource } from "../ingestion/google-drive-content.js";

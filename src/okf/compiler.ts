@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import { okfDocumentSchema, type OkfDocument } from "./okf-schema.js";
 import {
   readGitLabOkfFiles,
+  readGoogleDriveOkfFiles,
   readOkfFiles,
   type GitLabOkfSource,
+  type GoogleDriveOkfSource,
 } from "./corpus-reader.js";
 import { validateGovernance } from "./governance.js";
 import { toSourceDocument, type GovernanceIssue } from "./okf-types.js";
@@ -13,7 +15,7 @@ export interface CompileOptions {
   mode: "draft" | "stable";
 }
 
-export type OkfCorpusSource = string | GitLabOkfSource;
+export type OkfCorpusSource = string | GitLabOkfSource | GoogleDriveOkfSource;
 
 export interface ProjectionDocument {
   knowledgeId: string;
@@ -67,14 +69,21 @@ export async function compileOkfCorpus(
     rawFiles.push(
       ...(typeof input === "string"
         ? await readOkfFiles(input)
-        : await readGitLabOkfFiles(input)),
+        : input.kind === "gitlab"
+          ? await readGitLabOkfFiles(input)
+          : await readGoogleDriveOkfFiles(input)),
     );
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to read OKF corpus";
     errors.push({
       code: "CORPUS_READ_FAILED",
-      file: typeof input === "string" ? input : input.projectId,
+      file:
+        typeof input === "string"
+          ? input
+          : input.kind === "gitlab"
+            ? input.projectId
+            : input.folderIds.join(","),
       field: "",
       message,
     });
