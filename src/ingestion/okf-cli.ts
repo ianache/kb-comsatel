@@ -7,6 +7,8 @@ import { SourceConfigurationError } from "./source-errors.js";
 import { indexRemoteCorpus } from "./i5b-indexing.js";
 import { createGoogleDriveOkfSource } from "./google-drive-content.js";
 import { GoogleDriveHttpAdapter } from "./google-drive-http-adapter.js";
+import { createConfiguredEgressPolicy } from "../security/egress-policy.js";
+import { createCircuitBreaker } from "../ops/resilience.js";
 
 export interface OkfArgs {
   command: "validate" | "compile" | "index";
@@ -132,6 +134,13 @@ async function resolveCorpusSource(
 ): Promise<string | Parameters<typeof compileOkfCorpus>[0]> {
   if (options.source === "local") return options.sourceDir;
   const config = loadConfig(environment);
+  const egressPolicy = createConfiguredEgressPolicy(config);
+  const breaker = () =>
+    createCircuitBreaker({
+      failureThreshold: config.breakerFailureThreshold,
+      openMs: config.breakerOpenMs,
+      halfOpenMaxCalls: config.breakerHalfOpenMaxCalls,
+    });
   if (options.source === "gitlab") {
     if (!config.gitlabSourceEnabled) {
       throw new SourceConfigurationError(
@@ -149,6 +158,8 @@ async function resolveCorpusSource(
         baseUrl: config.gitlabSourceBaseUrl,
         token: config.gitlabSourceToken,
         timeoutMs: config.gitlabSourceTimeoutMs,
+        egressPolicy,
+        breaker: breaker(),
       }),
       projectId: config.gitlabSourceProjectId,
       ref: config.gitlabSourceRef,
@@ -165,6 +176,8 @@ async function resolveCorpusSource(
       baseUrl: config.googleDriveBaseUrl,
       token: config.googleDriveToken,
       timeoutMs: config.googleDriveTimeoutMs,
+      egressPolicy,
+      breaker: breaker(),
     }),
     config.googleDriveFolderIds,
   );

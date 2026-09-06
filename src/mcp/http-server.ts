@@ -6,6 +6,8 @@ import { createMcpServer } from "./adapter.js";
 import { httpErrorResponse } from "./http-errors.js";
 import { resolveHttpPrincipal } from "./http-auth.js";
 import type { ObservabilityContext } from "../ops/observability-context.js";
+import type { AdmissionControl, AdmissionLease } from "./admission-control.js";
+import { AdmissionRejectedError } from "./admission-control.js";
 
 export interface HttpMcpServerOptions {
   host: string;
@@ -15,6 +17,8 @@ export interface HttpMcpServerOptions {
   principalResolver?: PrincipalResolver;
   localPrincipal?: Parameters<typeof createMcpServer>[1];
   observability?: ObservabilityContext;
+  admissionControl?: AdmissionControl;
+  operationTimeoutMs?: number;
 }
 
 export interface HttpMcpServer {
@@ -30,6 +34,8 @@ export function createHttpMcpServer({
   principalResolver,
   localPrincipal,
   observability,
+  admissionControl,
+  operationTimeoutMs = 10_000,
 }: HttpMcpServerOptions): HttpMcpServer {
   if (!principalResolver && !localPrincipal) {
     throw new Error("HTTP authentication is not configured");
@@ -37,6 +43,7 @@ export function createHttpMcpServer({
   const app = fastify({ bodyLimit: maxBodyBytes, exposeHeadRoutes: false });
 
   app.post("/mcp", async (request, reply) => {
+    let lease: AdmissionLease | undefined;
     try {
       const principal = principalResolver
         ? await resolveHttpPrincipal(
@@ -44,6 +51,11 @@ export function createHttpMcpServer({
             principalResolver,
           )
         : localPrincipal;
+      if (admissionControl && principal) {
+        const admission = admissionControl.admit(principal.id);
+        if (admission instanceof AdmissionRejectedError) throw admission;
+        lease = admission;
+      }
       const correlationId = request.headers["x-correlation-id"];
       const server = createMcpServer(
         engine,
@@ -51,6 +63,7 @@ export function createHttpMcpServer({
         observability,
         "http",
         typeof correlationId === "string" ? correlationId : undefined,
+        operationTimeoutMs,
       );
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
@@ -63,8 +76,13 @@ export function createHttpMcpServer({
     } catch (error) {
       if (!reply.sent) {
         const response = httpErrorResponse(error);
+        if (error instanceof AdmissionRejectedError) {
+          reply.header("retry-after", error.retryAfterSeconds);
+        }
         return reply.code(response.statusCode).send(response.body);
       }
+    } finally {
+      lease?.release();
     }
   });
 

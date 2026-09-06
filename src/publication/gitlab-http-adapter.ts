@@ -18,6 +18,11 @@ import type {
   MergeRequestIdentity,
   MergeRequestRef,
 } from "./gitlab-port.js";
+import type { CircuitBreaker, OperationDeadline } from "../ops/resilience.js";
+import { createOperationDeadline } from "../ops/resilience.js";
+import type { EgressPolicy } from "../security/egress-policy.js";
+import { createEgressPolicy } from "../security/egress-policy.js";
+import { createCircuitBreaker } from "../ops/resilience.js";
 
 export type GitLabPublicationConfig = Pick<
   AppConfig,
@@ -26,6 +31,17 @@ export type GitLabPublicationConfig = Pick<
   | "gitlabProjectId"
   | "gitlabToken"
   | "gitlabTimeoutMs"
+  | "egressAllowHttp"
+  | "egressAllowPrivateNetworks"
+  | "egressGitlabAllowedHosts"
+  | "egressGitlabSourceAllowedHosts"
+  | "egressDriveAllowedHosts"
+  | "egressEmbeddingAllowedHosts"
+  | "egressQdrantAllowedHosts"
+  | "egressOidcAllowedHosts"
+  | "breakerFailureThreshold"
+  | "breakerOpenMs"
+  | "breakerHalfOpenMaxCalls"
 >;
 
 export type Fetcher = (
@@ -38,6 +54,9 @@ export interface GitLabHttpAdapterOptions {
   token: string;
   timeoutMs?: number;
   fetcher?: Fetcher;
+  egressPolicy?: EgressPolicy;
+  breaker?: CircuitBreaker;
+  deadline?: OperationDeadline;
 }
 
 export class GitLabHttpAdapter implements GitLabPort {
@@ -199,19 +218,26 @@ export class GitLabHttpAdapter implements GitLabPort {
     init: RequestInit,
     allowNotFound = false,
   ): Promise<unknown | null> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const requestUrl = this.options.egressPolicy
+      ? await this.options.egressPolicy.validate(url, "gitlab")
+      : url;
+    const deadline = this.options.deadline?.child() ??
+      createOperationDeadline(this.timeoutMs);
     try {
-      const response = await this.fetcher(url, {
-        ...init,
-        signal: controller.signal,
-        headers: {
-          ...(init.body === undefined
-            ? {}
-            : { "content-type": "application/json" }),
-          "PRIVATE-TOKEN": this.options.token,
-        },
-      });
+      const request = () =>
+        this.fetcher(requestUrl, {
+          ...init,
+          signal: deadline.signal(),
+          headers: {
+            ...(init.body === undefined
+              ? {}
+              : { "content-type": "application/json" }),
+            "PRIVATE-TOKEN": this.options.token,
+          },
+        });
+      const response = await (this.options.breaker
+        ? this.options.breaker.execute(request)
+        : request());
       if (allowNotFound && response.status === 404) return null;
       if (!response.ok) throw httpError(response.status);
       return (await response.json()) as unknown;
@@ -220,7 +246,10 @@ export class GitLabHttpAdapter implements GitLabPort {
       if (error instanceof SyntaxError) {
         throw unavailable(undefined, "invalid JSON response");
       }
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (
+        (error instanceof DOMException && error.name === "AbortError") ||
+        deadline.signal().aborted
+      ) {
         throw unavailable(undefined, "request timed out");
       }
       throw unavailable(
@@ -230,7 +259,7 @@ export class GitLabHttpAdapter implements GitLabPort {
           : "transport error",
       );
     } finally {
-      clearTimeout(timeout);
+      deadline.dispose();
     }
   }
 
@@ -253,6 +282,23 @@ export function createRuntimePublicationPort(
     baseUrl: config.gitlabBaseUrl,
     token: config.gitlabToken,
     timeoutMs: config.gitlabTimeoutMs,
+    egressPolicy: createEgressPolicy({
+      allowHttp: config.egressAllowHttp,
+      allowPrivateNetworks: config.egressAllowPrivateNetworks,
+      allowedHosts: {
+        gitlab: config.egressGitlabAllowedHosts,
+        "gitlab-source": config.egressGitlabSourceAllowedHosts,
+        drive: config.egressDriveAllowedHosts,
+        embedding: config.egressEmbeddingAllowedHosts,
+        qdrant: config.egressQdrantAllowedHosts,
+        oidc: config.egressOidcAllowedHosts,
+      },
+    }),
+    breaker: createCircuitBreaker({
+      failureThreshold: config.breakerFailureThreshold,
+      openMs: config.breakerOpenMs,
+      halfOpenMaxCalls: config.breakerHalfOpenMaxCalls,
+    }),
   });
 }
 

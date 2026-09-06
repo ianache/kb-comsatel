@@ -29,6 +29,7 @@ it("allows explicit deterministic local I3 mode", () => {
       KCP_I3_EMBEDDING_MODEL: "local-test",
       KCP_MYSQL_ENABLED: "true",
       KCP_MYSQL_URL: "mysql://user:password@127.0.0.1:3306/db",
+      KCP_EGRESS_QDRANT_ALLOWED_HOSTS: "127.0.0.1",
     }),
   ).toMatchObject({ i3Enabled: true, i3QdrantEnabled: true });
 });
@@ -38,6 +39,7 @@ it("loads explicit GitLab publication configuration", () => {
     KCP_GITLAB_PUBLICATION_ENABLED: "true",
     KCP_GITLAB_PROJECT_ID: "project-1",
     KCP_GITLAB_TOKEN: "secret-token",
+    KCP_EGRESS_GITLAB_ALLOWED_HOSTS: "gitlab.example.com",
   });
 
   expect(config.gitlabPublicationEnabled).toBe(true);

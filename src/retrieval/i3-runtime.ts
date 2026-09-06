@@ -11,6 +11,8 @@ import type { KnowledgeRepository } from "../catalog/repository.js";
 import type { EmbeddingProvider } from "./embedding-provider.js";
 import type { VectorStore } from "./vector-store.js";
 import type { ChunkReader } from "./chunk-reader.js";
+import { createEgressPolicy } from "../security/egress-policy.js";
+import { createCircuitBreaker } from "../ops/resilience.js";
 
 export interface I3Runtime {
   repository: KnowledgeRepository;
@@ -29,9 +31,35 @@ export async function createI3Runtime(
     throw new Error("I3 requires a chunk-capable repository");
   }
 
+  const egressPolicy = createEgressPolicy({
+    allowHttp: config.egressAllowHttp,
+    allowPrivateNetworks: config.egressAllowPrivateNetworks,
+    allowedHosts: {
+      gitlab: config.egressGitlabAllowedHosts,
+      "gitlab-source": config.egressGitlabSourceAllowedHosts,
+      drive: config.egressDriveAllowedHosts,
+      embedding: config.egressEmbeddingAllowedHosts,
+      qdrant: config.egressQdrantAllowedHosts,
+      oidc: config.egressOidcAllowedHosts,
+    },
+  });
+  const qdrantBreaker = createCircuitBreaker({
+    failureThreshold: config.breakerFailureThreshold,
+    openMs: config.breakerOpenMs,
+    halfOpenMaxCalls: config.breakerHalfOpenMaxCalls,
+  });
+  const embeddingBreaker = createCircuitBreaker({
+    failureThreshold: config.breakerFailureThreshold,
+    openMs: config.breakerOpenMs,
+    halfOpenMaxCalls: config.breakerHalfOpenMaxCalls,
+  });
+
   const vectorStore = new QdrantVectorStore({
     url: config.i3QdrantUrl,
     collection: config.i3QdrantCollection,
+    egressPolicy,
+    breaker: qdrantBreaker,
+    timeoutMs: config.operationTimeoutMs,
   });
   try {
     await vectorStore.ensureCollection({
@@ -53,7 +81,9 @@ export async function createI3Runtime(
             apiKey: config.i3EmbeddingApiKey,
             dimension: config.i3VectorDimension,
             timeoutMs: config.i3EmbeddingTimeoutMs,
-          });
+            egressPolicy,
+            breaker: embeddingBreaker,
+        });
     const source = new FilesystemDocumentSource({
       directory: config.i3SourceDir,
     });

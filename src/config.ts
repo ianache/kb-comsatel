@@ -68,6 +68,21 @@ const configSchema = z.object({
   googleDriveFolderIds: z.array(z.string().min(1)),
   googleDriveToken: z.string().min(1).optional(),
   googleDriveTimeoutMs: positiveIntegerSchema,
+  operationTimeoutMs: positiveIntegerSchema,
+  rateLimitCapacity: positiveIntegerSchema,
+  rateLimitRefillPerSecond: positiveIntegerSchema,
+  maxConcurrentRequests: positiveIntegerSchema,
+  breakerFailureThreshold: positiveIntegerSchema,
+  breakerOpenMs: positiveIntegerSchema,
+  breakerHalfOpenMaxCalls: positiveIntegerSchema,
+  egressAllowHttp: z.boolean(),
+  egressAllowPrivateNetworks: z.boolean(),
+  egressGitlabAllowedHosts: z.array(z.string().min(1)),
+  egressGitlabSourceAllowedHosts: z.array(z.string().min(1)),
+  egressDriveAllowedHosts: z.array(z.string().min(1)),
+  egressEmbeddingAllowedHosts: z.array(z.string().min(1)),
+  egressQdrantAllowedHosts: z.array(z.string().min(1)),
+  egressOidcAllowedHosts: z.array(z.string().min(1)),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -115,6 +130,20 @@ function parseStringList(value: string | undefined): string[] {
     .filter((item) => item.length > 0);
 }
 
+export function parseHostnameList(value: string | undefined): string[] {
+  return parseStringList(value).map((item) => item.toLowerCase());
+}
+
+function requireEgressAllowlist(
+  enabled: boolean,
+  hosts: string[],
+  message: string,
+): void {
+  if (enabled && hosts.length === 0) {
+    throw new Error(message);
+  }
+}
+
 export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const httpEnabled = parseBoolean(env.KCP_HTTP_ENABLED, false);
   const httpLocalMode = parseBoolean(env.KCP_HTTP_LOCAL_MODE, false);
@@ -146,6 +175,24 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   );
   const googleDriveFolderIds = parseStringList(env.KCP_GOOGLE_DRIVE_FOLDER_IDS);
   const googleDriveToken = env.KCP_GOOGLE_DRIVE_TOKEN;
+  const egressGitlabAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_GITLAB_ALLOWED_HOSTS,
+  );
+  const egressGitlabSourceAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_GITLAB_SOURCE_ALLOWED_HOSTS,
+  );
+  const egressDriveAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_DRIVE_ALLOWED_HOSTS,
+  );
+  const egressEmbeddingAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_EMBEDDING_ALLOWED_HOSTS,
+  );
+  const egressQdrantAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_QDRANT_ALLOWED_HOSTS,
+  );
+  const egressOidcAllowedHosts = parseHostnameList(
+    env.KCP_EGRESS_OIDC_ALLOWED_HOSTS,
+  );
   const otelEnabled = parseBoolean(env.KCP_OTEL_ENABLED, false);
   const otelEndpoint = env.KCP_OTEL_ENDPOINT;
   if (otelEndpoint !== undefined) {
@@ -201,6 +248,36 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       "Google Drive token is required",
     );
   }
+  requireEgressAllowlist(
+    gitlabPublicationEnabled,
+    egressGitlabAllowedHosts,
+    "GitLab egress allowlist is required",
+  );
+  requireEgressAllowlist(
+    gitlabSourceEnabled,
+    egressGitlabSourceAllowedHosts,
+    "GitLab source egress allowlist is required",
+  );
+  requireEgressAllowlist(
+    googleDriveSourceEnabled,
+    egressDriveAllowedHosts,
+    "Google Drive egress allowlist is required",
+  );
+  requireEgressAllowlist(
+    i3Enabled && i3EmbeddingModel !== "local-test",
+    egressEmbeddingAllowedHosts,
+    "Embedding egress allowlist is required",
+  );
+  requireEgressAllowlist(
+    i3Enabled && i3QdrantEnabled,
+    egressQdrantAllowedHosts,
+    "Qdrant egress allowlist is required",
+  );
+  requireEgressAllowlist(
+    keycloakEnabled,
+    egressOidcAllowedHosts,
+    "OIDC egress allowlist is required",
+  );
 
   return configSchema.parse({
     host: env.KCP_HOST ?? "127.0.0.1",
@@ -322,6 +399,52 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
       10_000,
       "KCP_GOOGLE_DRIVE_TIMEOUT_MS",
     ),
+    operationTimeoutMs: parsePositiveInteger(
+      env.KCP_OPERATION_TIMEOUT_MS,
+      10_000,
+      "KCP_OPERATION_TIMEOUT_MS",
+    ),
+    rateLimitCapacity: parsePositiveInteger(
+      env.KCP_RATE_LIMIT_CAPACITY,
+      60,
+      "KCP_RATE_LIMIT_CAPACITY",
+    ),
+    rateLimitRefillPerSecond: parsePositiveInteger(
+      env.KCP_RATE_LIMIT_REFILL_PER_SECOND,
+      1,
+      "KCP_RATE_LIMIT_REFILL_PER_SECOND",
+    ),
+    maxConcurrentRequests: parsePositiveInteger(
+      env.KCP_MAX_CONCURRENT_REQUESTS,
+      16,
+      "KCP_MAX_CONCURRENT_REQUESTS",
+    ),
+    breakerFailureThreshold: parsePositiveInteger(
+      env.KCP_BREAKER_FAILURE_THRESHOLD,
+      3,
+      "KCP_BREAKER_FAILURE_THRESHOLD",
+    ),
+    breakerOpenMs: parsePositiveInteger(
+      env.KCP_BREAKER_OPEN_MS,
+      30_000,
+      "KCP_BREAKER_OPEN_MS",
+    ),
+    breakerHalfOpenMaxCalls: parsePositiveInteger(
+      env.KCP_BREAKER_HALF_OPEN_MAX_CALLS,
+      1,
+      "KCP_BREAKER_HALF_OPEN_MAX_CALLS",
+    ),
+    egressAllowHttp: parseBoolean(env.KCP_EGRESS_ALLOW_HTTP, false),
+    egressAllowPrivateNetworks: parseBoolean(
+      env.KCP_EGRESS_ALLOW_PRIVATE_NETWORKS,
+      false,
+    ),
+    egressGitlabAllowedHosts,
+    egressGitlabSourceAllowedHosts,
+    egressDriveAllowedHosts,
+    egressEmbeddingAllowedHosts,
+    egressQdrantAllowedHosts,
+    egressOidcAllowedHosts,
   });
 }
 

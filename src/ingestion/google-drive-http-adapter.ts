@@ -6,6 +6,9 @@ import type {
   DriveSourceFile,
   GoogleDriveSourcePort,
 } from "./google-drive-port.js";
+import type { CircuitBreaker, OperationDeadline } from "../ops/resilience.js";
+import { createOperationDeadline } from "../ops/resilience.js";
+import type { EgressPolicy } from "../security/egress-policy.js";
 
 export type DriveFetcher = (
   input: string | URL,
@@ -17,6 +20,9 @@ export interface GoogleDriveHttpAdapterOptions {
   token: string;
   timeoutMs?: number;
   fetcher?: DriveFetcher;
+  egressPolicy?: EgressPolicy;
+  breaker?: CircuitBreaker;
+  deadline?: OperationDeadline;
 }
 
 export class GoogleDriveHttpAdapter implements GoogleDriveSourcePort {
@@ -107,14 +113,21 @@ export class GoogleDriveHttpAdapter implements GoogleDriveSourcePort {
   }
 
   private async requestResponse(url: string): Promise<Response> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const requestUrl = this.options.egressPolicy
+      ? await this.options.egressPolicy.validate(url, "drive")
+      : url;
+    const deadline = this.options.deadline?.child() ??
+      createOperationDeadline(this.timeoutMs);
     try {
-      const response = await this.fetcher(url, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${this.options.token}` },
-        signal: controller.signal,
-      });
+      const request = () =>
+        this.fetcher(requestUrl, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${this.options.token}` },
+          signal: deadline.signal(),
+        });
+      const response = await (this.options.breaker
+        ? this.options.breaker.execute(request)
+        : request());
       if (!response.ok) {
         const code =
           response.status === 401 || response.status === 403
@@ -133,7 +146,7 @@ export class GoogleDriveHttpAdapter implements GoogleDriveSourcePort {
         "Google Drive is unavailable",
       );
     } finally {
-      clearTimeout(timer);
+      deadline.dispose();
     }
   }
 }
