@@ -22,6 +22,7 @@
     "okf:source-index": "tsx src/ingestion/okf-cli.ts index --source gitlab",
     "okf:drive-validate": "tsx src/ingestion/okf-cli.ts validate --source google-drive",
     "okf:drive-index": "tsx src/ingestion/okf-cli.ts index --source google-drive",
+    "eval:golden": "tsx src/evaluation/golden-cli.ts eval",
     "okf:index": "tsx src/ingestion/okf-cli.ts index",
     "okf:publication-plan": "tsx src/ingestion/okf-publication-cli.ts plan",
     "okf:publish": "tsx src/ingestion/okf-publication-cli.ts publish"

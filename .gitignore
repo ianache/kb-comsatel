@@ -12,5 +12,6 @@ graphify-out/
 graph-output/
 out/
 tmp/
+.tmp/
 temp/
 .worktrees/
