@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -6,7 +8,7 @@ from app.main import app
 
 
 @pytest.fixture
-def admin_client() -> TestClient:
+def admin_client() -> Iterator[TestClient]:
     app.dependency_overrides[get_current_principal] = lambda: Principal(
         subject="test-admin", roles=["km-admin"], claims={}
     )

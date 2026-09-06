@@ -37,7 +37,7 @@ async def _resolve_token(vault_secret_ref: str, settings: Settings) -> str:
 def _project_to_search_result(project: dict) -> GitLabSearchResult:
     return GitLabSearchResult(
         id=str(project["id"]),
-        nombre=project["path_with_namespace"],
+        nombre=project.get("path_with_namespace", ""),
         grupo=project.get("namespace", {}).get("full_path", ""),
     )
 
@@ -92,8 +92,8 @@ async def get_repo_branches(
     if not connector.healthy:
         update_connector(connector_id, healthy=True)
 
-    names = [branch["name"] for branch in branches]
-    default = next((branch["name"] for branch in branches if branch.get("default")), names[0] if names else "")
+    names = [branch.get("name", "") for branch in branches]
+    default = next((branch.get("name", "") for branch in branches if branch.get("default")), names[0] if names else "")
     return GitLabBranches(ramas_disponibles=names, rama_default=default)
 
 

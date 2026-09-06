@@ -132,21 +132,37 @@ export class IngestaApiService {
     return { ok: true, connector: body as Connector };
   }
 
-  async searchGitlabRepos(connectorId: string, query: string): Promise<GitLabSearchResult[]> {
+  async searchGitlabRepos(
+    connectorId: string,
+    query: string,
+  ): Promise<{ ok: true; results: GitLabSearchResult[] } | { ok: false; error: string }> {
     const response = await fetch(
       `${BFF_BASE_URL}/api/ingesta/gitlab/${connectorId}/search?q=${encodeURIComponent(query)}`,
       { credentials: "include" },
     );
-    if (!response.ok) return [];
-    return (await response.json()) as GitLabSearchResult[];
+    if (response.ok) return { ok: true, results: (await response.json()) as GitLabSearchResult[] };
+    const body: unknown = await response.json().catch(() => null);
+    const detail =
+      body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+        ? body.detail
+        : `HTTP ${response.status}`;
+    return { ok: false, error: detail };
   }
 
-  async getGitlabBranches(connectorId: string, repoId: string): Promise<GitLabBranches | null> {
+  async getGitlabBranches(
+    connectorId: string,
+    repoId: string,
+  ): Promise<{ ok: true; branches: GitLabBranches } | { ok: false; error: string }> {
     const response = await fetch(`${BFF_BASE_URL}/api/ingesta/gitlab/${connectorId}/branches/${repoId}`, {
       credentials: "include",
     });
-    if (!response.ok) return null;
-    return (await response.json()) as GitLabBranches;
+    if (response.ok) return { ok: true, branches: (await response.json()) as GitLabBranches };
+    const body: unknown = await response.json().catch(() => null);
+    const detail =
+      body && typeof body === "object" && "detail" in body && typeof body.detail === "string"
+        ? body.detail
+        : `HTTP ${response.status}`;
+    return { ok: false, error: detail };
   }
 
   async linkGitlabRepos(connectorId: string, selections: GitLabRepoSelection[]): Promise<GitLabRepoLink[]> {

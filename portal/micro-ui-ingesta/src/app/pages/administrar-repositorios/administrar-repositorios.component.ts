@@ -60,7 +60,7 @@ interface SearchRow {
                 style="accent-color:var(--color-accent);width:16px;height:16px"
                 [checked]="isSelected(row.entry.id)"
                 [disabled]="isLinked(row.entry.id)"
-                (change)="toggleSelected(row)"
+                (change)="toggleSelected(row, $event)"
               />
             </td>
             <td style="font-family:ui-monospace,Menlo,monospace;font-size:12px">{{ row.entry.id }}</td>
@@ -142,10 +142,16 @@ export class AdministrarRepositoriosComponent implements OnInit {
   private async runSearch(text: string): Promise<void> {
     this.searching.set(true);
     this.errorBanner.set(null);
+    this.selectedIds.clear();
     try {
-      const results = await this.api.searchGitlabRepos(this.connectorId, text);
+      const outcome = await this.api.searchGitlabRepos(this.connectorId, text);
+      if (!outcome.ok) {
+        this.errorBanner.set(`No se pudo conectar a GitLab: ${outcome.error}`);
+        this.rows.set([]);
+        return;
+      }
       this.rows.set(
-        results.map((entry) => ({ entry, branches: null, branchesLoading: false, branchesError: null, selectedBranch: "" })),
+        outcome.results.map((entry) => ({ entry, branches: null, branchesLoading: false, branchesError: null, selectedBranch: "" })),
       );
     } catch {
       this.errorBanner.set("No se pudo conectar a GitLab: error de red.");
@@ -165,7 +171,9 @@ export class AdministrarRepositoriosComponent implements OnInit {
 
   private readonly selectedIds = new Set<string>();
 
-  protected async toggleSelected(row: SearchRow): Promise<void> {
+  protected async toggleSelected(row: SearchRow, event?: Event): Promise<void> {
+    const checkbox = event?.target as HTMLInputElement | undefined;
+
     if (this.selectedIds.has(row.entry.id)) {
       this.selectedIds.delete(row.entry.id);
       this.rows.update((current) => current.map((r) => (r.entry.id === row.entry.id ? { ...r, branches: null, selectedBranch: "" } : r)));
@@ -175,19 +183,27 @@ export class AdministrarRepositoriosComponent implements OnInit {
     this.selectedIds.add(row.entry.id);
     this.rows.update((current) => current.map((r) => (r.entry.id === row.entry.id ? { ...r, branchesLoading: true, branchesError: null } : r)));
 
-    const branches = await this.api.getGitlabBranches(this.connectorId, row.entry.id);
-    if (branches === null) {
+    const outcome = await this.api.getGitlabBranches(this.connectorId, row.entry.id);
+    if (!outcome.ok) {
       this.selectedIds.delete(row.entry.id);
       this.rows.update((current) =>
         current.map((r) =>
           r.entry.id === row.entry.id
-            ? { ...r, branchesLoading: false, branchesError: "No se pudieron cargar las ramas." }
+            ? { ...r, branchesLoading: false, branchesError: outcome.error }
             : r,
         ),
       );
+      // Angular's change detection only rewrites a [checked] binding when the bound
+      // expression's *value* differs from the previous cycle. isSelected() evaluated
+      // to false both before the user's click (row.branches was null) and now (we just
+      // removed the id from selectedIds), so the binding value never changes and Angular
+      // skips the DOM write — leaving the checkbox showing whatever the native click left
+      // behind (checked). Force the actual DOM property so the failure is visible.
+      if (checkbox) checkbox.checked = false;
       return;
     }
 
+    const { branches } = outcome;
     this.rows.update((current) =>
       current.map((r) =>
         r.entry.id === row.entry.id
