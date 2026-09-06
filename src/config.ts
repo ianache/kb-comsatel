@@ -15,6 +15,10 @@ const configSchema = z.object({
   host: hostSchema,
   port: portSchema,
   logLevel: logLevelSchema,
+  otelEnabled: z.boolean(),
+  otelEndpoint: z.string().url().optional(),
+  otelServiceName: z.string().min(1),
+  otelEnvironment: z.string().min(1),
   httpEnabled: z.boolean(),
   httpLocalMode: z.boolean(),
   httpPort: portSchema,
@@ -142,6 +146,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   );
   const googleDriveFolderIds = parseStringList(env.KCP_GOOGLE_DRIVE_FOLDER_IDS);
   const googleDriveToken = env.KCP_GOOGLE_DRIVE_TOKEN;
+  const otelEnabled = parseBoolean(env.KCP_OTEL_ENABLED, false);
+  const otelEndpoint = env.KCP_OTEL_ENDPOINT;
+  if (otelEndpoint !== undefined) {
+    try {
+      new URL(otelEndpoint);
+    } catch {
+      throw new Error("Invalid KCP_OTEL_ENDPOINT");
+    }
+  }
 
   if (mysqlEnabled && !env.KCP_MYSQL_URL) {
     throw new Error("MySQL URL is required");
@@ -193,6 +206,10 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     host: env.KCP_HOST ?? "127.0.0.1",
     port: parsePort(env.KCP_PORT),
     logLevel: parseLogLevel(env.KCP_LOG_LEVEL),
+    otelEnabled,
+    otelEndpoint,
+    otelServiceName: env.KCP_OTEL_SERVICE_NAME ?? "knowledge-context-mcp",
+    otelEnvironment: env.KCP_OTEL_ENVIRONMENT ?? "local",
     httpEnabled,
     httpLocalMode,
     httpPort: parsePort(env.KCP_HTTP_PORT ?? "8790"),
