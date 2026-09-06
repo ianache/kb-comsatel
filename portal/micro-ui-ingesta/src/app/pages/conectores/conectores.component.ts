@@ -206,15 +206,32 @@ export class ConectoresComponent implements OnInit {
     return "secrets/kb/db-catalog";
   }
 
-  protected testConnection(): void {
+  protected async testConnection(): Promise<void> {
     this.testResult.set({ message: "Verificando conectividad...", bg: "var(--color-neutral-100)", color: "var(--color-text)" });
-    setTimeout(() => {
+
+    if (this.form.kind !== "gitlab") {
+      this.testResult.set({
+        message: "Verificación no disponible para este tipo de conector todavía.",
+        bg: "var(--color-neutral-100)",
+        color: "var(--color-text)",
+      });
+      return;
+    }
+
+    const result = await this.api.testGitlabConnection(this.form.base_uri, this.form.vault_secret_ref);
+    if (result.ok) {
       this.testResult.set({
         message: "✓ Conexión exitosa. Credencial validada en Vault.",
         bg: "var(--color-accent-100)",
         color: "var(--color-accent-800)",
       });
-    }, 800);
+    } else {
+      this.testResult.set({
+        message: `✗ ${result.error ?? "No se pudo conectar."}`,
+        bg: "var(--color-danger-100,#fee2e2)",
+        color: "var(--color-danger-800,#991b1b)",
+      });
+    }
   }
 
   async ngOnInit(): Promise<void> {
