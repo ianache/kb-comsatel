@@ -8,6 +8,7 @@ import { createHttpMcpServer, type HttpMcpServer } from "./mcp/http-server.js";
 import { localPrincipal } from "./mcp/tools.js";
 import { createHealthServer, type HealthServer } from "./ops/health-server.js";
 import { createMetricsRegistry } from "./ops/metrics-registry.js";
+import { createObservabilityContext } from "./ops/observability-context.js";
 import { createStructuredLogger } from "./ops/structured-logger.js";
 import { createRuntimeDependencies } from "./ops/runtime-dependencies.js";
 import { createI3Runtime, type I3Runtime } from "./retrieval/i3-runtime.js";
@@ -24,6 +25,7 @@ function createRuntime(enableStdio: boolean): Application {
     service: config.otelServiceName,
     environment: config.otelEnvironment,
   });
+  const observability = createObservabilityContext({ metrics, logger });
   let healthServer: HealthServer | undefined;
   let closeMcpServer: (() => Promise<void>) | undefined;
   let httpServer: HttpMcpServer | undefined;
@@ -80,7 +82,7 @@ function createRuntime(enableStdio: boolean): Application {
           );
 
           if (enableStdio) {
-            const server = createMcpServer(engine);
+            const server = createMcpServer(engine, undefined, observability, "stdio");
             const transport = new StdioServerTransport();
             await server.connect(transport);
             closeMcpServer = () => server.close();

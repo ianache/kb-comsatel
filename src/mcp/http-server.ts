@@ -5,6 +5,7 @@ import type { PrincipalResolver } from "../security/principal-resolver.js";
 import { createMcpServer } from "./adapter.js";
 import { httpErrorResponse } from "./http-errors.js";
 import { resolveHttpPrincipal } from "./http-auth.js";
+import type { ObservabilityContext } from "../ops/observability-context.js";
 
 export interface HttpMcpServerOptions {
   host: string;
@@ -13,6 +14,7 @@ export interface HttpMcpServerOptions {
   engine: ContextEngine;
   principalResolver?: PrincipalResolver;
   localPrincipal?: Parameters<typeof createMcpServer>[1];
+  observability?: ObservabilityContext;
 }
 
 export interface HttpMcpServer {
@@ -27,6 +29,7 @@ export function createHttpMcpServer({
   engine,
   principalResolver,
   localPrincipal,
+  observability,
 }: HttpMcpServerOptions): HttpMcpServer {
   if (!principalResolver && !localPrincipal) {
     throw new Error("HTTP authentication is not configured");
@@ -41,7 +44,14 @@ export function createHttpMcpServer({
             principalResolver,
           )
         : localPrincipal;
-      const server = createMcpServer(engine, principal);
+      const correlationId = request.headers["x-correlation-id"];
+      const server = createMcpServer(
+        engine,
+        principal,
+        observability,
+        "http",
+        typeof correlationId === "string" ? correlationId : undefined,
+      );
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,
