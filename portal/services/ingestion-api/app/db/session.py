@@ -93,6 +93,23 @@ def create_batch(connector_id: str, source_uri: str, artifact_type: str, total: 
     return batch
 
 
+class InvalidBatchTransitionError(Exception):
+    """Raised when start_batch is called on a batch not in `queued` or `failed`."""
+
+
+def start_batch(batch_id: str) -> IngestionBatch | None:
+    existing = _batches.get(batch_id)
+    if existing is None:
+        return None
+    if existing.status not in (BatchStatus.queued, BatchStatus.failed):
+        raise InvalidBatchTransitionError(
+            f"Batch {batch_id} is in status {existing.status}, cannot start"
+        )
+    updated = existing.model_copy(update={"status": BatchStatus.processing, "updated_at": datetime.now(UTC)})
+    _batches[batch_id] = updated
+    return updated
+
+
 def update_connector(connector_id: str, **fields: object) -> Connector | None:
     existing = _connectors.get(connector_id)
     if existing is None:
