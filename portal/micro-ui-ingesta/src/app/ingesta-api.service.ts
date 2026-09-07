@@ -108,6 +108,15 @@ export class IngestaApiService {
     return (await response.json()) as IngestionBatch[];
   }
 
+  async startBatch(id: string): Promise<IngestionBatch | null> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/batches/${id}/start`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as IngestionBatch;
+  }
+
   async listConnectors(): Promise<Connector[]> {
     const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors`, { credentials: "include" });
     if (!response.ok) return [];
