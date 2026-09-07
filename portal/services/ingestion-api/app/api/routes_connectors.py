@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import Principal, require_role
 from app.db.session import (
+    create_batch,
     create_connector,
     get_connector,
     link_gitlab_repos,
@@ -17,6 +18,7 @@ from app.models.schemas import (
     CreateConnectorRequest,
     DriveFolderLink,
     GitLabRepoLink,
+    IngestionBatch,
     LinkDriveFoldersRequest,
     LinkGitlabReposRequest,
     SchemaTable,
@@ -67,9 +69,25 @@ async def patch_connector(
         base_uri=body.base_uri,
         vault_secret_ref=body.vault_secret_ref,
         active=body.active,
+        sync_mode=body.sync_mode,
+        cron_expr=body.cron_expr,
+        webhook_secret_ref=body.webhook_secret_ref,
     )
     assert updated is not None
     return updated
+
+
+@router.post("/{connector_id}/force-ingest", response_model=list[IngestionBatch], status_code=status.HTTP_201_CREATED)
+async def force_ingest(
+    connector_id: str,
+    _principal: Principal = Depends(require_role(*_WRITE_ROLES)),
+) -> list[IngestionBatch]:
+    connector = _require_connector(connector_id)
+    links = list_repo_links(connector_id)
+    return [
+        create_batch(connector_id=connector.id, source_uri=link.repo, artifact_type="markdown+pdf", total=0)
+        for link in links
+    ]
 
 
 @router.get("/{connector_id}/repos", response_model=list[GitLabRepoLink])

@@ -11,6 +11,11 @@ class ConnectorKind(str, Enum):
     schema = "schema"
 
 
+class SyncMode(str, Enum):
+    cron = "cron"
+    webhook = "webhook"
+
+
 class Connector(BaseModel):
     id: str
     kind: ConnectorKind
@@ -20,6 +25,9 @@ class Connector(BaseModel):
     descripcion: str = ""
     active: bool = True
     healthy: bool = True
+    sync_mode: SyncMode = SyncMode.cron
+    cron_expr: str | None = None
+    webhook_secret_ref: str | None = Field(default=None, description="Referencia Vault del secreto HMAC, nunca el valor")
 
 
 class CreateConnectorRequest(BaseModel):
@@ -35,6 +43,9 @@ class UpdateConnectorRequest(BaseModel):
     base_uri: str | None = None
     vault_secret_ref: str | None = None
     active: bool | None = None
+    sync_mode: SyncMode | None = None
+    cron_expr: str | None = None
+    webhook_secret_ref: str | None = None
 
 
 class GitLabSearchResult(BaseModel):

@@ -18,6 +18,9 @@ export interface Connector {
   vault_secret_ref: string;
   active: boolean;
   healthy: boolean;
+  sync_mode: "cron" | "webhook";
+  cron_expr: string | null;
+  webhook_secret_ref: string | null;
 }
 
 export interface CreateConnectorRequest {
@@ -88,6 +91,9 @@ export interface UpdateConnectorPayload {
   base_uri?: string;
   vault_secret_ref?: string;
   active?: boolean;
+  sync_mode?: "cron" | "webhook";
+  cron_expr?: string;
+  webhook_secret_ref?: string;
 }
 
 export interface VaultSecretMetadata {
@@ -106,6 +112,20 @@ export class IngestaApiService {
     const response = await fetch(`${BFF_BASE_URL}/api/ingesta/batches`, { credentials: "include" });
     if (!response.ok) return [];
     return (await response.json()) as IngestionBatch[];
+  }
+
+  async forceIngest(connectorId: string): Promise<{ ok: boolean; count?: number; error?: string }> {
+    const response = await fetch(`${BFF_BASE_URL}/api/ingesta/connectors/${connectorId}/force-ingest`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (response.ok) {
+      const batches = (await response.json()) as IngestionBatch[];
+      return { ok: true, count: batches.length };
+    }
+    const body: unknown = await response.json().catch(() => null);
+    const detail = body && typeof body === "object" && "detail" in body && typeof body.detail === "string" ? body.detail : `HTTP ${response.status}`;
+    return { ok: false, error: detail };
   }
 
   async startBatch(id: string): Promise<IngestionBatch | null> {
