@@ -124,6 +124,7 @@ interface ServiceRow {
               >Panel operacional</a
             >
             <a routerLink="/ingesta/conectores" routerLinkActive="nav-active" class="nav-item">Conectores y fuentes</a>
+            <a routerLink="/ingesta/ejecucion" routerLinkActive="nav-active" class="nav-item">Ejecución y monitoreo</a>
             <a routerLink="/ingesta/vault" routerLinkActive="nav-active" class="nav-item">Credenciales (Vault)</a>
           </nav>
           <div
