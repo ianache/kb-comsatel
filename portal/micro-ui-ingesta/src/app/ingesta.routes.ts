@@ -28,4 +28,8 @@ export const INGESTA_ROUTES: Routes = [
     path: "vault",
     loadComponent: () => import("./pages/vault-credenciales/vault-credenciales.component").then((m) => m.VaultCredencialesComponent),
   },
+  {
+    path: "ejecucion",
+    loadComponent: () => import("./pages/ejecucion/ejecucion.component").then((m) => m.EjecucionComponent),
+  },
 ];
