@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.core.security import Principal, require_role
-from app.db.session import create_batch, get_connector, list_batches
+from app.db.session import InvalidBatchTransitionError, create_batch, get_connector, list_batches, start_batch
 from app.models.schemas import IngestionBatch, TriggerIngestionRequest
 
 router = APIRouter(prefix="/batches", tags=["batches"])
@@ -31,3 +31,17 @@ async def trigger_batch(
         artifact_type="markdown+pdf",
         total=0,
     )
+
+
+@router.post("/{batch_id}/start", response_model=IngestionBatch)
+async def start_batch_route(
+    batch_id: str,
+    _principal: Principal = Depends(require_role(*_TRIGGER_ROLES)),
+) -> IngestionBatch:
+    try:
+        batch = start_batch(batch_id)
+    except InvalidBatchTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if batch is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Batch no encontrado")
+    return batch
